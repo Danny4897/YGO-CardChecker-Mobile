@@ -1,0 +1,12 @@
+{
+  "mcp": {
+    "harness": {
+      "type": "local",
+      "command": [
+        "harness",
+        "mcp"
+      ],
+      "enabled": true
+    }
+  }
+}

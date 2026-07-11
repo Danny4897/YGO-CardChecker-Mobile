@@ -1,0 +1,14 @@
+---
+description: Angular layer targets for ygo-card-checker TypeScript.
+globs: ygo-card-checker/**/*.ts
+alwaysApply: false
+---
+
+# Angular layers (target, not enforced yet)
+
+`models → utils → services → stores → presentation`; `core` = infra only.
+
+- Models: no imports from services/stores/components.
+- Services: avoid importing stores (29 legacy violations exist — don't add new ones).
+- Business flow: Result-style observables + `errorKey` i18n; no thrown exceptions for user paths.
+- Signals/OnPush; daisyUI `duel` theme; branch prefix `refactor/` for structural work.

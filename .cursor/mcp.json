@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "yugioh": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\adani\\Desktop\\YGOChecker\\tools\\yugioh-mcp-server\\dist\\index.js"
+      ],
+      "env": {
+        "DATABASE_URL": "file:C:\\Users\\adani\\Desktop\\YGOChecker\\tools\\yugioh-mcp-server\\data\\yugioh.db",
+        "YUGIOH_DATA_DIR": "C:\\Users\\adani\\Desktop\\YGOChecker\\tools\\yugioh-mcp-server\\data",
+        "LOG_LEVEL": "info"
+      }
+    },
+    "harness": {
+      "command": "harness",
+      "args": ["mcp"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    }
+  }
+}

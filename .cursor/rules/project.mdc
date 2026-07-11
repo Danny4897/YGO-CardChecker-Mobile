@@ -1,0 +1,14 @@
+---
+description: YGOChecker harness + token discipline. Always-on project guardrails.
+alwaysApply: true
+---
+
+# YGOChecker agent rules
+
+- Read `AGENTS.md` first; use skill `ygo-checker` for deck/YGO domain work only when relevant.
+- Before commit: `harness validate` + `cd ygo-card-checker && npm test && npm run build`.
+- Prefer `/harness:verify` over re-explaining checks. Skip harness skills for trivial doc typos — state skip.
+- Never `--no-verify`. Never weaken eslint/prettier configs.
+- Minimize tokens: grep targeted paths; don't read `dist/`, `.angular/`, `node_modules/`. Use MCP `yugioh` for card lookups, not full DB dumps.
+- Loop state lives in `PROGRESS.md` — update there, not long chat recaps.
+- Maker/checker split: after implementation, invoke `verifier` subagent before claiming done.

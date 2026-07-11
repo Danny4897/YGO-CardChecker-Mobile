@@ -1,0 +1,7 @@
+﻿# Token/indexing exclusions
+ygo-card-checker/dist/
+ygo-card-checker/.angular/
+**/node_modules/
+tools/yugioh-mcp-server/data/
+**/*.map
+**/coverage/
