@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Soft lattice foil hint for ThemedScreenHeader; used under gradient at low alpha. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="48dp"
+    android:viewportWidth="120"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#E8C45C"
+        android:strokeWidth="0.4"
+        android:strokeAlpha="0.12"
+        android:pathData="M0,12 L12,0 L24,12 L12,24 Z M24,12 L36,0 L48,12 L36,24 Z M48,12 L60,0 L72,12 L60,24 Z M72,12 L84,0 L96,12 L84,24 Z M96,12 L108,0 L120,12 L108,24 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#E8C45C"
+        android:strokeWidth="0.35"
+        android:strokeAlpha="0.08"
+        android:pathData="M0,36 L12,24 L24,36 L12,48 Z M24,36 L36,24 L48,36 L36,48 Z M48,36 L60,24 L72,36 L60,48 Z M72,36 L84,24 L96,36 L84,48 Z M96,36 L108,24 L120,36 L108,48 Z" />
+    <path
+        android:fillColor="#99CBEA"
+        android:fillAlpha="0.04"
+        android:pathData="M0,0h120v48H0z" />
+</vector>

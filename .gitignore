@@ -1,0 +1,16 @@
+# Android / Gradle
+android/.gradle/
+android/.gradle-hud-agent/
+android/.kotlin/
+android/**/build/
+android/local.properties
+android/.idea/
+android/**/crash-log.txt
+android/crash-log.txt
+android/verify-*.png
+*.apk
+*.aab
+
+# Local build noise
+android-*.log
+android-overlay-test.log

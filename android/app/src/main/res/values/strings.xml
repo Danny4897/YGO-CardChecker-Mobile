@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">YGOChecker</string>
+    <string name="widget_random_hat_label">Random HAT card</string>
+</resources>

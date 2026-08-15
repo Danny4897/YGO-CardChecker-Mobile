@@ -2,24 +2,28 @@
 
 ## Open
 
-- `refactor/mdpro-card-overlay`: **VERIFY FAIL** — `npm run build` TS errors in `overlay.store.ts` (missing `applyOcrResult` method header ~562); tests 29/29 pass
-- `refactor/deck-assistant`: Phase 2 — combo gap detection (WIP stashed)
+- `refactor/android-native`: **Flow redesign** — attuale motore nascosto dietro Coming Soon
+- **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
+- OAuth bindings esterni (OK lasciati così)
+- Sync cloud profilo/amici/mazzi pubblici
 
 ## Done
 
-- 2026-07-21: Verifier — `harness validate` CLI pass; `ng test --watch=false` 29 SUCCESS; **build FAIL** (overlay.store.ts syntax)
-- 2026-07-21: Overlay baseline committed — full passcode catalog, spell OCR noise fix, qty×0 if not playable
-- 2026-07-21: Overlay UX — PiP search-row layout; lang-aware refresh; passcode catalog + IndexedDB for near-instant lookup
-- 2026-07-21: Overlay — restored working light-mode: full-frame OCR on detail open; PiP side rail; no in-detail fingerprint chase
-- 2026-07-21: Overlay — card-switch OCR in-detail; PiP side rail ◀; probe keeps running when docked
-- 2026-07-21: Overlay light mode — `pixelmatch` probe, OCR solo su open dettaglio, PiP close on close; TextDetector+tesseract lazy
-- 2026-07-21: `refactor/mdpro-card-overlay` — `/overlay` live OCR + upload; 27 tests + build pass
-- 2026-07-13: Branch `refactor/deck-assistant` from main
-- 2026-07-13: Deck Coach MVP — analyzer, service, UI panel, Ollama narrative
-- 2026-07-13: Unified deck assist chat — model, service, panel UI, i18n; verified (harness + 28 tests + build)
+- 2026-08-15: **FOSS auto-update** — feed `update.json` + install all’avvio / Settings; docs in `android/distribution/`
+- 2026-08-15: **Verifier** — Android unit tests PASS; spot-check overlay/CardDetail/Extra OK; npm test 106 OK + build OK; harness validate FAIL (AGENTS.md sections, pre-existing)
+- 2026-08-15: **Complete banner** non-blocking + staple Extra **opzionali** (chip nel dialog Completa)
+- 2026-08-15: **UI polish** — DuelWorkingOverlay su Completa mazzo; splash/forge più lunghi; dettaglio decklist = search + salva collezione con nome
+- 2026-08-15: **Complete Extra** — skip Fusion named/contact (Armityle/Barbaroid); staple toolbox (101/Exciton/Castel…); Fusion soft solo se poly/hero
+- 2026-08-15: **Complete Extra diversity** — 1-of only; bilancia Synchro/Xyz/Fusion/Link; Xyz boost se Main ha 2+ stesso livello
+- 2026-08-15: **Text synergies for all cards** — race/type from effect text (Zombie World → Zombies + Paladin/Mezuki/…); package pairs; related non più solo static JSON
+- 2026-08-15: **Fix related** — stop remote 35MB related.json wipe; HAT pack + auto-heal se edge < 5k; GetRelated fallback legalità
+- 2026-08-15: **YDKE** padded Base64; Completa mazzo cascade + Side
+- 2026-08-15: Flow Coming Soon; drawer brandato; related enrichment v1
 
 ## Notes
 
-- Branch: `refactor/mdpro-card-overlay` — OCR on detail open + on in-detail card change; collapsed PiP = side rail with ◀
-- Deck-assistant WIP: stash on `refactor/deck-assistant`
-- Battle simulation work in stash on `refactor/03-community-auth`
+- JDK via Android Studio `jbr`
+- APK: `android/app/build/outputs/apk/debug/app-debug.apk`
+- Prima di Completa mazzo: Impostazioni → **Scarica tutto**
+- Non commit finché non richiesto
+- `ng test` plain può hangare in watch / Electron disconnect; usare `--watch=false --browsers=ChromeHeadless`
