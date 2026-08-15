@@ -45,13 +45,16 @@ fun DuelUpdateDialog(
     currentVersionName: String,
     changelog: String,
     downloading: Boolean,
+    downloadProgress: Float = 0f,
+    awaitingInstall: Boolean = false,
     onDownload: () -> Unit,
     onLater: () -> Unit,
 ) {
     val shape = RoundedCornerShape(20.dp)
     val gold = MaterialTheme.colorScheme.primary
+    val busy = downloading || awaitingInstall
     Dialog(
-        onDismissRequest = { if (!downloading) onLater() },
+        onDismissRequest = { if (!busy) onLater() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
@@ -135,7 +138,7 @@ fun DuelUpdateDialog(
                     Modifier.padding(horizontal = DuelSpacing.space5, vertical = DuelSpacing.space3),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    if (changelog.isNotBlank()) {
+                    if (changelog.isNotBlank() && !awaitingInstall) {
                         Text(
                             stringResource(R.string.update_changelog_label),
                             style = MaterialTheme.typography.labelLarge,
@@ -164,11 +167,28 @@ fun DuelUpdateDialog(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            CircularProgressIndicator(
-                                color = gold,
-                                strokeWidth = 3.dp,
-                                modifier = Modifier.size(36.dp),
-                            )
+                            if (downloadProgress > 0.02f) {
+                                androidx.compose.material3.LinearProgressIndicator(
+                                    progress = { downloadProgress },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = gold,
+                                    trackColor = gold.copy(alpha = 0.2f),
+                                )
+                                Text(
+                                    stringResource(
+                                        R.string.update_download_percent,
+                                        (downloadProgress * 100).toInt().coerceIn(0, 100),
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            } else {
+                                CircularProgressIndicator(
+                                    color = gold,
+                                    strokeWidth = 3.dp,
+                                    modifier = Modifier.size(36.dp),
+                                )
+                            }
                             Text(
                                 stringResource(R.string.update_downloading),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -178,28 +198,65 @@ fun DuelUpdateDialog(
                         }
                     }
 
-                    Button(
-                        onClick = onDownload,
-                        enabled = !downloading,
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = gold,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    ) {
+                    if (awaitingInstall) {
                         Text(
-                            stringResource(R.string.update_download),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
+                            stringResource(R.string.update_install_confirm_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            stringResource(R.string.update_install_reopen_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                    TextButton(
-                        onClick = onLater,
-                        enabled = !downloading,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.update_later))
+
+                    if (!awaitingInstall) {
+                        Button(
+                            onClick = onDownload,
+                            enabled = !downloading,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = gold,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        ) {
+                            Text(
+                                stringResource(R.string.update_download),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    } else {
+                        Button(
+                            onClick = onLater,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = gold,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                        ) {
+                            Text(
+                                stringResource(R.string.update_install_got_it),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                    if (!awaitingInstall) {
+                        TextButton(
+                            onClick = onLater,
+                            enabled = !downloading,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(stringResource(R.string.update_later))
+                        }
                     }
                     Spacer(Modifier.height(4.dp))
                 }

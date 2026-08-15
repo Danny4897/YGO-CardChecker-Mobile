@@ -1,15 +1,14 @@
 package com.ygochecker.android.update
 
 import android.app.Activity
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -17,42 +16,82 @@ import java.io.File
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.coroutineContext
 
 @Singleton
 class ApkUpdateInstaller @Inject constructor(
     private val http: OkHttpClient,
 ) {
     /**
-     * Downloads [apkUrl] into cache and launches the system package installer.
-     * Prefers [PackageInstaller] sessions (same path most FOSS updaters use).
+     * Downloads [apkUrl] into cache and opens the **system package installer** UI
+     * (FileProvider + ACTION_VIEW). User must confirm; the OS then replaces this app.
      */
-    suspend fun downloadAndInstall(activity: Activity, apkUrl: String): InstallOutcome =
-        withContext(Dispatchers.IO) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                !activity.packageManager.canRequestPackageInstalls()
-            ) {
-                return@withContext InstallOutcome.NeedInstallPermission
-            }
-            try {
-                val dir = File(activity.cacheDir, "updates").apply { mkdirs() }
-                val apk = File(dir, "ygochecker-update.apk")
-                if (apk.exists()) apk.delete()
-                val request = Request.Builder().url(apkUrl).get().build()
-                http.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) return@withContext InstallOutcome.Failed
-                    val body = response.body ?: return@withContext InstallOutcome.Failed
-                    apk.outputStream().use { out -> body.byteStream().copyTo(out) }
-                }
-                withContext(Dispatchers.Main) {
-                    launchInstaller(activity, apk)
-                }
-                InstallOutcome.Started
-            } catch (_: IOException) {
-                InstallOutcome.Failed
-            } catch (_: Exception) {
-                InstallOutcome.Failed
-            }
+    suspend fun downloadAndInstall(
+        activity: Activity,
+        apkUrl: String,
+        onProgress: (Float) -> Unit = {},
+    ): InstallOutcome = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !activity.packageManager.canRequestPackageInstalls()
+        ) {
+            return@withContext InstallOutcome.NeedInstallPermission
         }
+        try {
+            val dir = File(activity.cacheDir, "updates").apply { mkdirs() }
+            val apk = File(dir, "ygochecker-update.apk")
+            if (apk.exists()) apk.delete()
+
+            val request = Request.Builder()
+                .url(apkUrl)
+                .header("Accept", "application/vnd.android.package-archive,application/octet-stream,*/*")
+                .header("User-Agent", "YGOChecker-Updater/${activity.packageName}")
+                .get()
+                .build()
+
+            http.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext InstallOutcome.Failed("HTTP ${response.code}")
+                }
+                val body = response.body ?: return@withContext InstallOutcome.Failed("empty")
+                val total = body.contentLength()
+                var read = 0L
+                apk.outputStream().use { out ->
+                    body.byteStream().use { input ->
+                        val buf = ByteArray(DEFAULT_BUFFER_SIZE)
+                        while (true) {
+                            coroutineContext.ensureActive()
+                            val n = input.read(buf)
+                            if (n <= 0) break
+                            out.write(buf, 0, n)
+                            read += n
+                            if (total > 0L) {
+                                onProgress((read.toFloat() / total.toFloat()).coerceIn(0f, 1f))
+                            } else {
+                                // Indeterminate-ish progress for unknown length
+                                onProgress((read % 5_000_000L) / 5_000_000f * 0.9f)
+                            }
+                        }
+                        out.flush()
+                    }
+                }
+            }
+
+            if (!looksLikeApk(apk)) {
+                apk.delete()
+                return@withContext InstallOutcome.Failed("not_apk")
+            }
+            onProgress(1f)
+
+            withContext(Dispatchers.Main) {
+                launchSystemInstaller(activity, apk)
+            }
+            InstallOutcome.AwaitingUserConfirm
+        } catch (_: IOException) {
+            InstallOutcome.Failed("network")
+        } catch (e: Exception) {
+            InstallOutcome.Failed(e.javaClass.simpleName)
+        }
+    }
 
     fun openUnknownSourcesSettings(context: Context) {
         val intent = Intent(
@@ -62,59 +101,52 @@ class ApkUpdateInstaller @Inject constructor(
         context.startActivity(intent)
     }
 
-    private fun launchInstaller(context: Context, apk: File) {
-        try {
-            commitPackageSession(context, apk)
-        } catch (_: Exception) {
-            // Fallback for OEM quirks — classic VIEW intent.
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                apk,
-            )
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
+    private fun launchSystemInstaller(context: Context, apk: File) {
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            apk,
+        )
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // Some OEMs need the installer resolved explicitly.
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
+        // Grant to known package-installer packages when present.
+        listOf(
+            "com.google.android.packageinstaller",
+            "com.android.packageinstaller",
+            "com.samsung.android.packageinstaller",
+        ).forEach { pkg ->
+            try {
+                context.grantUriPermission(
+                    pkg,
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            } catch (_: Exception) {
+                // Package may be absent on this device.
+            }
+        }
+        context.startActivity(Intent.createChooser(intent, null))
     }
 
-    private fun commitPackageSession(context: Context, apk: File) {
-        val installer = context.packageManager.packageInstaller
-        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-        // Self-update of the same package — avoid an extra confirmation step when the OS allows it.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            try {
-                params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
-            } catch (_: Exception) {
-                // OEM stubs may reject this; default user action is fine.
-            }
-        }
-        val sessionId = installer.createSession(params)
-        installer.openSession(sessionId).use { session ->
-            session.openWrite("ygochecker", 0, apk.length()).use { out ->
-                apk.inputStream().use { input -> input.copyTo(out) }
-                session.fsync(out)
-            }
-            val callback = Intent(context, context.javaClass).apply {
-                action = Intent.ACTION_MAIN
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            // Prefer returning to our MainActivity after install confirmation.
-            val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                ?: callback
-            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
-            val pending = PendingIntent.getActivity(context, sessionId, launch, flags)
-            session.commit(pending.intentSender)
+    private fun looksLikeApk(file: File): Boolean {
+        if (!file.isFile || file.length() < 10_000L) return false
+        file.inputStream().use { input ->
+            val magic = ByteArray(4)
+            if (input.read(magic) != 4) return false
+            // ZIP / APK local file header
+            return magic[0] == 0x50.toByte() && magic[1] == 0x4B.toByte()
         }
     }
 }
 
-enum class InstallOutcome {
-    Started,
-    NeedInstallPermission,
-    Failed,
+sealed interface InstallOutcome {
+    /** System installer UI was launched — user must confirm. */
+    data object AwaitingUserConfirm : InstallOutcome
+    data object NeedInstallPermission : InstallOutcome
+    data class Failed(val reason: String = "") : InstallOutcome
 }

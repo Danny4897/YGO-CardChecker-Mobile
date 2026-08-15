@@ -33,6 +33,8 @@ import javax.inject.Inject
 data class UpdateUiState(
     val prompt: AppUpdateManifest? = null,
     val downloading: Boolean = false,
+    val downloadProgress: Float = 0f,
+    val awaitingInstall: Boolean = false,
     val statusMessage: String? = null,
     val needPermission: Boolean = false,
     val whatsNew: WhatsNewPayload? = null,
@@ -56,7 +58,7 @@ class AppUpdateViewModel @Inject constructor(
         maybeShowWhatsNew()
         when (val result = checkUpdate.invoke(BuildConfig.VERSION_CODE)) {
             is AppUpdateCheck.Available -> _state.update { it.copy(prompt = result.manifest) }
-            is AppUpdateCheck.Failed -> Unit // silent on launch
+            is AppUpdateCheck.Failed -> Unit
             else -> Unit
         }
     }
@@ -85,7 +87,6 @@ class AppUpdateViewModel @Inject constructor(
         _state.update { it.copy(whatsNew = null) }
     }
 
-    /** Manual check from Settings — surfaces UpToDate / Failed. */
     fun checkManual(upToDateLabel: String, disabledLabel: String, failedLabel: String) =
         viewModelScope.launch {
             when (val result = checkUpdate.invoke(BuildConfig.VERSION_CODE)) {
@@ -105,27 +106,50 @@ class AppUpdateViewModel @Inject constructor(
         }
 
     fun dismissLater() = viewModelScope.launch {
-        val code = _state.value.prompt?.versionCode ?: return@launch
-        repo.setSkippedVersionCode(code)
-        _state.update { it.copy(prompt = null) }
+        val code = _state.value.prompt?.versionCode
+        if (code != null && !_state.value.awaitingInstall) {
+            repo.setSkippedVersionCode(code)
+        }
+        _state.update {
+            it.copy(prompt = null, awaitingInstall = false, downloading = false, downloadProgress = 0f)
+        }
     }
 
     fun dismissStatus() {
         _state.update { it.copy(statusMessage = null) }
     }
 
-    fun download(activity: Activity) = viewModelScope.launch {
+    fun download(activity: Activity, failedLabel: String) = viewModelScope.launch {
         val url = _state.value.prompt?.apkUrl ?: return@launch
-        _state.update { it.copy(downloading = true, needPermission = false) }
-        when (installer.downloadAndInstall(activity, url)) {
-            InstallOutcome.Started -> _state.update {
-                it.copy(downloading = false, prompt = null)
+        _state.update {
+            it.copy(
+                downloading = true,
+                downloadProgress = 0f,
+                awaitingInstall = false,
+                needPermission = false,
+                statusMessage = null,
+            )
+        }
+        val outcome = installer.downloadAndInstall(activity, url) { progress ->
+            _state.update { s -> s.copy(downloadProgress = progress) }
+        }
+        when (outcome) {
+            InstallOutcome.AwaitingUserConfirm -> _state.update {
+                it.copy(
+                    downloading = false,
+                    downloadProgress = 1f,
+                    awaitingInstall = true,
+                )
             }
             InstallOutcome.NeedInstallPermission -> _state.update {
                 it.copy(downloading = false, needPermission = true)
             }
-            InstallOutcome.Failed -> _state.update {
-                it.copy(downloading = false)
+            is InstallOutcome.Failed -> _state.update {
+                it.copy(
+                    downloading = false,
+                    downloadProgress = 0f,
+                    statusMessage = failedLabel,
+                )
             }
         }
     }
@@ -143,6 +167,7 @@ fun AppUpdateHost(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val failedLabel = stringResource(DesignR.string.update_download_failed)
     if (checkOnLaunch) {
         LaunchedEffect(Unit) { viewModel.checkOnLaunch() }
     }
@@ -156,14 +181,17 @@ fun AppUpdateHost(
     }
 
     state.prompt?.let { manifest ->
-        // Prefer what's-new first after an upgrade; then offer a newer remote if any.
         if (state.whatsNew != null) return@let
         DuelUpdateDialog(
             versionName = manifest.versionName,
             currentVersionName = BuildConfig.VERSION_NAME,
             changelog = manifest.changelog,
             downloading = state.downloading,
-            onDownload = { context.findActivity()?.let { viewModel.download(it) } },
+            downloadProgress = state.downloadProgress,
+            awaitingInstall = state.awaitingInstall,
+            onDownload = {
+                context.findActivity()?.let { viewModel.download(it, failedLabel) }
+            },
             onLater = viewModel::dismissLater,
         )
     }
