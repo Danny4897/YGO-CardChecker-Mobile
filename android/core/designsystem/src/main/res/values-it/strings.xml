@@ -297,7 +297,7 @@
     <string name="error_deck_save_failed">Impossibile salvare il mazzo. Riprova.</string>
     <string name="error_deck_storage_failed">Impossibile salvare il mazzo. Controlla lo spazio disponibile e riprova.</string>
     <string name="error_deck_import_ydke_invalid">Il link YDKE non è valido. Copia il link completo e riprova.</string>
-    <string name="error_deck_import_ydke_card_not_found">Alcune carte YDKE non sono nel catalogo: %1$s. Sincronizza il catalogo e riprova.</string>
+    <string name="error_deck_import_ydke_card_not_found">Alcune carte YDKE non sono nel catalogo: %1$s. Impostazioni → Scarica tutto, poi riprova.</string>
     <string name="error_deck_import_section_invalid">Sezione sconosciuta: %1$s. Usa #main, #extra o #side.</string>
     <string name="error_deck_import_line_invalid">Impossibile leggere “%1$s”. Usa quantità seguita dal nome della carta.</string>
     <string name="error_deck_import_quantity_invalid">Quantità non valida in “%1$s”. Usa un numero da 1 a 3.</string>

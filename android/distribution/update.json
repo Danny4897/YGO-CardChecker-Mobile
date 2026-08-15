@@ -1,6 +1,6 @@
 {
-  "versionCode": 6,
-  "versionName": "0.2.4",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.4/app-release.apk",
-  "changelog": "Fix install aggiornamenti: progresso download + conferma sistema + istruzioni riapertura"
+  "versionCode": 7,
+  "versionName": "0.2.5",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.5/app-release.apk",
+  "changelog": "Fix YDKE import: niente falso «Sei offline»; attende pack catalogo"
 }

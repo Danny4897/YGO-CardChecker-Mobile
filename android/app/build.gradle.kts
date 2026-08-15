@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.2.4"
+        versionCode = 7
+        versionName = "0.2.5"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Fix auto-update: download con progresso + schermata installazione di sistema\\n• Dopo il download ti dice di confermare e riaprire l’app\\n• Ingresso Duel Disk / shuffle import (0.2.3)",
+                "• Fix import YDKE: non dice più «Sei offline» a torto\\n• Attende il pack catalogo prima di risolvere i passcode\\n• Fix install aggiornamenti (0.2.4)",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.

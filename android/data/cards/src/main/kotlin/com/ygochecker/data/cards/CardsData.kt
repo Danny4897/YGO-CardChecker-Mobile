@@ -11,6 +11,7 @@ import androidx.room.RoomDatabase
 import com.ygochecker.core.common.AppError
 import com.ygochecker.core.common.AppResult
 import com.ygochecker.core.domain.CardRepository
+import com.ygochecker.core.domain.OfflinePackRepository
 import com.ygochecker.core.domain.PreferenceRepository
 import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.core.model.Card
@@ -306,6 +307,7 @@ class RoomCardRepository @Inject constructor(
     private val dao: CardDao,
     private val api: YgoProDeckClient,
     private val preferences: PreferenceRepository,
+    private val offlinePack: OfflinePackRepository,
 ) : CardRepository {
     override fun search(query: String): Flow<List<Card>> =
         search(query, GameFormat.TCG, SearchFilters(playableOnly = false))
@@ -398,6 +400,8 @@ class RoomCardRepository @Inject constructor(
     override suspend fun count() = dao.count()
 
     override suspend fun ensureCatalogReady() {
+        // Import (YDKE/YDK) can race Application startup — wait for HAT pack first.
+        offlinePack.ensureBundledKnowledge()
         if (dao.count() == 0) dao.insertAll(seed)
     }
 
@@ -409,20 +413,20 @@ class RoomCardRepository @Inject constructor(
         val missing = unique.filterNot(local::containsKey)
         if (missing.isEmpty()) return AppResult.Ok(unique.mapNotNull(local::get))
 
-        return try {
-            val remote = api.fetchByIds(missing, language = null)
-            if (remote.isNotEmpty()) dao.insertAll(remote.map(Card::toEntity))
-            val merged = local + remote.associateBy(Card::id)
-            val stillMissing = unique.filterNot(merged::containsKey)
-            if (stillMissing.isNotEmpty()) {
-                AppResult.Err(AppError("deck.import.ydke_card_not_found", stillMissing.sorted().joinToString()))
-            } else {
-                AppResult.Ok(unique.mapNotNull(merged::get))
-            }
-        } catch (_: IOException) {
-            AppResult.Err(AppError("network.unavailable"))
+        // Fill gaps from YGOPRODeck when possible. Network failure must NOT look like
+        // "you're offline" for YDKE/YDK import — report unresolved passcodes instead.
+        val remote = try {
+            api.fetchByIds(missing, language = null)
         } catch (_: Exception) {
-            AppResult.Err(AppError("catalog.unavailable"))
+            emptyList()
+        }
+        if (remote.isNotEmpty()) dao.insertAll(remote.map(Card::toEntity))
+        val merged = local + remote.associateBy(Card::id)
+        val stillMissing = unique.filterNot(merged::containsKey)
+        return if (stillMissing.isNotEmpty()) {
+            AppResult.Err(AppError("deck.import.ydke_card_not_found", stillMissing.sorted().joinToString()))
+        } else {
+            AppResult.Ok(unique.mapNotNull(merged::get))
         }
     }
 
