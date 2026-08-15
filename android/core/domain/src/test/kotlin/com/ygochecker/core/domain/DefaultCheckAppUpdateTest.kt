@@ -30,6 +30,15 @@ class DefaultCheckAppUpdateTest {
         assertTrue(check.invoke(1) is AppUpdateCheck.Skipped)
     }
 
+    @Test
+    fun ignoreSkipReoffersDeferred() = runBlocking {
+        val remote = AppUpdateManifest(2, "0.2.0", "https://x/a.apk")
+        val check = DefaultCheckAppUpdate(
+            FakeRepo(feedUrl = "https://x/update.json", remote = remote, skipped = 2),
+        )
+        assertTrue(check.invoke(1, ignoreSkip = true) is AppUpdateCheck.Available)
+    }
+
     private class FakeRepo(
         override val feedUrl: String,
         private val remote: AppUpdateManifest?,

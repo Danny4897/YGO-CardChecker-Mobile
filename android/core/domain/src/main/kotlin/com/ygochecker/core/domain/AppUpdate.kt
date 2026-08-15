@@ -31,14 +31,18 @@ interface AppUpdateRepository {
     suspend fun setLastSeenVersionCode(versionCode: Int)
 }
 
-fun interface CheckAppUpdate {
-    suspend fun invoke(installedVersionCode: Int): AppUpdateCheck
+interface CheckAppUpdate {
+    /**
+     * @param ignoreSkip when true (manual “Check for updates”), re-offer a version the user
+     * deferred with “Later” so they are not stuck forever.
+     */
+    suspend fun invoke(installedVersionCode: Int, ignoreSkip: Boolean = false): AppUpdateCheck
 }
 
 class DefaultCheckAppUpdate @javax.inject.Inject constructor(
     private val repo: AppUpdateRepository,
 ) : CheckAppUpdate {
-    override suspend fun invoke(installedVersionCode: Int): AppUpdateCheck {
+    override suspend fun invoke(installedVersionCode: Int, ignoreSkip: Boolean): AppUpdateCheck {
         if (repo.feedUrl.isBlank()) return AppUpdateCheck.Disabled
         return when (val result = repo.fetchManifest()) {
             is AppResult.Err -> AppUpdateCheck.Failed(result.error.errorKey)
@@ -46,7 +50,8 @@ class DefaultCheckAppUpdate @javax.inject.Inject constructor(
                 val remote = result.value
                 when {
                     remote.versionCode <= installedVersionCode -> AppUpdateCheck.UpToDate
-                    remote.versionCode <= repo.skippedVersionCode() -> AppUpdateCheck.Skipped
+                    !ignoreSkip && remote.versionCode <= repo.skippedVersionCode() ->
+                        AppUpdateCheck.Skipped
                     remote.apkUrl.isBlank() -> AppUpdateCheck.Failed("update.invalid")
                     else -> AppUpdateCheck.Available(remote)
                 }

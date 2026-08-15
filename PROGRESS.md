@@ -9,6 +9,7 @@
 
 ## Done
 
+- 2026-08-16: **v0.2.8** — update check: cache-bust feed + manual ripropone skip; bump per chi aveva “Più tardi” su 0.2.7
 - 2026-08-16: **v0.2.7** — shell: drawer non copre navbar; swipe tra tab primari
 - 2026-08-16: **v0.2.6** — YDKE: fallback per-id se batch YGOPRODeck 400; Compose forge solo post-success
 - 2026-08-16: **v0.2.5** — fix YDKE false offline; ensure HAT pack before resolveByIds

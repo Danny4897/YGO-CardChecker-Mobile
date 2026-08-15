@@ -1,6 +1,6 @@
 {
-  "versionCode": 9,
-  "versionName": "0.2.7",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.7/app-release.apk",
-  "changelog": "Drawer sopra la bottom bar (non la copre) · swipe tra i tab principali"
+  "versionCode": 10,
+  "versionName": "0.2.8",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.8/app-release.apk",
+  "changelog": "Fix check aggiornamenti (cache + ripropone dopo Più tardi) · include nav shell 0.2.7"
 }

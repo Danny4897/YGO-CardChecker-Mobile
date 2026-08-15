@@ -31,10 +31,19 @@ class HttpAppUpdateRepository @Inject constructor(
     override val feedUrl: String = BuildConfig.UPDATE_FEED_URL.trim()
 
     override suspend fun fetchManifest(): AppResult<AppUpdateManifest> = withContext(Dispatchers.IO) {
-        val url = feedUrl
-        if (url.isBlank()) return@withContext AppResult.Err(AppError("update.disabled"))
+        val base = feedUrl
+        if (base.isBlank()) return@withContext AppResult.Err(AppError("update.disabled"))
         try {
-            val request = Request.Builder().url(url).get().header("Accept", "application/json").build()
+            // Bust GitHub raw CDN (max-age=300) so checks after a release see fresh JSON.
+            val separator = if (base.contains('?')) '&' else '?'
+            val url = "$base${separator}_=${System.currentTimeMillis()}"
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .header("Accept", "application/json")
+                .header("Cache-Control", "no-cache")
+                .header("Pragma", "no-cache")
+                .build()
             http.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     return@withContext AppResult.Err(AppError("update.network"))

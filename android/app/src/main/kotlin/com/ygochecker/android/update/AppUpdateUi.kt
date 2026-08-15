@@ -89,7 +89,7 @@ class AppUpdateViewModel @Inject constructor(
 
     fun checkManual(upToDateLabel: String, disabledLabel: String, failedLabel: String) =
         viewModelScope.launch {
-            when (val result = checkUpdate.invoke(BuildConfig.VERSION_CODE)) {
+            when (val result = checkUpdate.invoke(BuildConfig.VERSION_CODE, ignoreSkip = true)) {
                 is AppUpdateCheck.Available -> _state.update {
                     it.copy(prompt = result.manifest, statusMessage = null)
                 }

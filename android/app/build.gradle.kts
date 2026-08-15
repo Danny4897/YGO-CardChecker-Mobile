@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.2.7"
+        versionCode = 10
+        versionName = "0.2.8"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Navigation: drawer non copre più la bottom bar\\n• Swipe orizzontale tra Cerca / Mazzi / Flow / Overlay\\n• Profilo e Impostazioni restano nel menu laterale",
+                "• Check update più affidabile (no cache CDN stale)\\n• Controlla aggiornamenti ripropone anche se avevi scelto Più tardi\\n• Shell nav 0.2.7: drawer sopra la bottom bar + swipe tab",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
