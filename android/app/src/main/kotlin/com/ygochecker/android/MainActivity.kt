@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Person
@@ -39,8 +41,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,10 +61,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import com.ygochecker.android.BuildConfig
 import com.ygochecker.android.update.AppUpdateHost
 import com.ygochecker.android.update.AppUpdateViewModel
@@ -69,12 +69,12 @@ import com.ygochecker.core.designsystem.DuelSpacing
 import com.ygochecker.core.designsystem.LocalOpenDrawer
 import com.ygochecker.core.designsystem.R as DesignR
 import com.ygochecker.core.designsystem.YgoCheckerTheme
+import com.ygochecker.core.domain.AccountLinker
 import com.ygochecker.core.domain.LanguagePreference
 import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.feature.decklist.DecksRoute
 import com.ygochecker.feature.flow.FlowRoute
 import com.ygochecker.feature.overlay.OverlayRoute
-import com.ygochecker.core.domain.AccountLinker
 import com.ygochecker.feature.profile.ProfileRoute
 import com.ygochecker.feature.search.SearchRoute
 import com.ygochecker.feature.settings.SettingsRoute
@@ -176,8 +176,8 @@ private fun LocalizedResources(language: AppLanguage, content: @Composable () ->
 
 private data class Destination(val route: String, val label: Int, val icon: ImageVector)
 
-/** Primary tabs only — Profile & Settings stay in the drawer. */
-private val bottomDestinations = listOf(
+/** Primary tabs — swipeable pager. Profile/Settings live in the drawer. */
+private val primaryTabs = listOf(
     Destination("search", DesignR.string.nav_search, Icons.Default.Search),
     Destination("decks", DesignR.string.nav_decks, Icons.Default.Style),
     Destination("flow", DesignR.string.nav_flow, Icons.Default.AccountTree),
@@ -189,146 +189,168 @@ private val drawerDestinations = listOf(
     Destination("settings", DesignR.string.nav_settings, Icons.Default.Settings),
 )
 
-/** Keep the same bottom bar chrome on Profile (no Profile tab item). */
-private val routesWithBottomBar = bottomDestinations.map { it.route } + "profile"
-
+/**
+ * Modern shell:
+ * - Bottom bar stays fixed; drawer opens **above** it (does not cover the nav).
+ * - Primary destinations use a horizontal pager (swipe between tabs).
+ * - Profile / Settings stay in the account drawer.
+ */
 @Composable
 private fun AppShell(onCheckUpdates: () -> Unit = {}) {
-    val nav = rememberNavController()
-    val current by nav.currentBackStackEntryAsState()
-    val route = current?.destination?.route
+    var section by rememberSaveable { mutableStateOf("tabs") }
+    var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
-    val showBottomBar = route in routesWithBottomBar
+    val pagerState = rememberPagerState(
+        initialPage = tabIndex.coerceIn(0, primaryTabs.lastIndex),
+        pageCount = { primaryTabs.size },
+    )
+
+    LaunchedEffect(tabIndex) {
+        if (pagerState.currentPage != tabIndex) {
+            pagerState.scrollToPage(tabIndex)
+        }
+    }
+    LaunchedEffect(pagerState.settledPage) {
+        if (section == "tabs" && tabIndex != pagerState.settledPage) {
+            tabIndex = pagerState.settledPage
+        }
+    }
+
+    val showBottomBar = section != "settings"
+    val selectedTab = when (section) {
+        "profile" -> -1
+        "settings" -> -1
+        else -> tabIndex
+    }
+
+    fun goTabs(index: Int) {
+        section = "tabs"
+        tabIndex = index.coerceIn(0, primaryTabs.lastIndex)
+        scope.launch { drawerState.close() }
+    }
 
     CompositionLocalProvider(LocalOpenDrawer provides openDrawer) {
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            drawerContent = {
-                ModalDrawerSheet(
-                    drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        // Scaffold owns the bottom bar so the drawer cannot paint over it.
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                if (!showBottomBar) return@Scaffold
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 0.dp,
                 ) {
-                    Column(Modifier.padding(bottom = DuelSpacing.space4)) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(Modifier.padding(DuelSpacing.space4)) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_launcher_foreground),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(56.dp),
-                                    contentScale = ContentScale.Fit,
-                                )
-                                Text(
-                                    stringResource(DesignR.string.splash_brand),
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(top = DuelSpacing.space2),
-                                )
-                                Text(
-                                    stringResource(DesignR.string.nav_drawer_tagline),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                        Text(
-                            stringResource(DesignR.string.nav_drawer_account),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(
-                                start = DuelSpacing.space4,
-                                end = DuelSpacing.space4,
-                                top = DuelSpacing.space4,
-                                bottom = DuelSpacing.space2,
+                    primaryTabs.forEachIndexed { index, destination ->
+                        val label = stringResource(destination.label)
+                        NavigationBarItem(
+                            selected = selectedTab == index,
+                            onClick = { goTabs(index) },
+                            icon = { Icon(destination.icon, label) },
+                            label = { Text(label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             ),
                         )
-                        drawerDestinations.forEach { destination ->
-                            val label = stringResource(destination.label)
-                            val selected = route == destination.route
-                            NavigationDrawerItem(
-                                label = {
-                                    Text(
-                                        label,
-                                        style = MaterialTheme.typography.titleSmall,
-                                    )
-                                },
-                                selected = selected,
-                                onClick = {
-                                    scope.launch { drawerState.close() }
-                                    nav.navigate(destination.route) {
-                                        launchSingleTop = true
-                                        restoreState = true
-                                        popUpTo(nav.graph.startDestinationId) { saveState = true }
-                                    }
-                                },
-                                icon = { Icon(destination.icon, label) },
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
-                                colors = NavigationDrawerItemDefaults.colors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                ),
-                            )
-                        }
                     }
                 }
             },
-        ) {
-            Scaffold(
-                containerColor = MaterialTheme.colorScheme.background,
-                bottomBar = {
-                    if (!showBottomBar) return@Scaffold
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        tonalElevation = 0.dp,
+        ) { padding ->
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                drawerContent = {
+                    ModalDrawerSheet(
+                        drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     ) {
-                        bottomDestinations.forEach { destination ->
-                            val label = stringResource(destination.label)
-                            val selected = route == destination.route
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = {
-                                    nav.navigate(destination.route) {
-                                        launchSingleTop = true
-                                        restoreState = true
-                                        popUpTo(nav.graph.startDestinationId) { saveState = true }
-                                    }
-                                },
-                                icon = { Icon(destination.icon, label) },
-                                label = { Text(label) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Column(Modifier.padding(bottom = DuelSpacing.space4)) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Column(Modifier.padding(DuelSpacing.space4)) {
+                                    Image(
+                                        painter = painterResource(R.drawable.ic_launcher_foreground),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(56.dp),
+                                        contentScale = ContentScale.Fit,
+                                    )
+                                    Text(
+                                        stringResource(DesignR.string.splash_brand),
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(top = DuelSpacing.space2),
+                                    )
+                                    Text(
+                                        stringResource(DesignR.string.nav_drawer_tagline),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            Text(
+                                stringResource(DesignR.string.nav_drawer_account),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(
+                                    start = DuelSpacing.space4,
+                                    end = DuelSpacing.space4,
+                                    top = DuelSpacing.space4,
+                                    bottom = DuelSpacing.space2,
                                 ),
                             )
+                            drawerDestinations.forEach { destination ->
+                                val label = stringResource(destination.label)
+                                val selected = section == destination.route
+                                NavigationDrawerItem(
+                                    label = {
+                                        Text(label, style = MaterialTheme.typography.titleSmall)
+                                    },
+                                    selected = selected,
+                                    onClick = {
+                                        scope.launch { drawerState.close() }
+                                        section = destination.route
+                                    },
+                                    icon = { Icon(destination.icon, label) },
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
+                                    colors = NavigationDrawerItemDefaults.colors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    ),
+                                )
+                            }
                         }
                     }
                 },
-            ) { padding ->
-                NavHost(
-                    navController = nav,
-                    startDestination = "search",
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                ) {
-                    composable("search") { SearchRoute() }
-                    composable("decks") { DecksRoute() }
-                    composable("overlay") { OverlayRoute() }
-                    composable("flow") { FlowRoute() }
-                    composable("profile") { ProfileRoute() }
-                    composable("settings") {
-                        SettingsRoute(
-                            onCheckUpdates = onCheckUpdates,
-                            installedVersionName = BuildConfig.VERSION_NAME,
-                            installedVersionCode = BuildConfig.VERSION_CODE,
-                        )
+            ) {
+                when (section) {
+                    "profile" -> ProfileRoute()
+                    "settings" -> SettingsRoute(
+                        onCheckUpdates = onCheckUpdates,
+                        installedVersionName = BuildConfig.VERSION_NAME,
+                        installedVersionCode = BuildConfig.VERSION_CODE,
+                    )
+                    else -> HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        beyondViewportPageCount = 0,
+                        key = { primaryTabs[it].route },
+                    ) { page ->
+                        when (primaryTabs[page].route) {
+                            "search" -> SearchRoute()
+                            "decks" -> DecksRoute()
+                            "flow" -> FlowRoute()
+                            "overlay" -> OverlayRoute()
+                        }
                     }
                 }
             }
