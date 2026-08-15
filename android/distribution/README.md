@@ -32,6 +32,25 @@ https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/
 
 `versionCode` must be **greater** than what users already have. Prefer the same signing key across updates (debug↔release do not upgrade each other).
 
+## OAuth (Discord / Google)
+
+Optional. Without credentials the app opens the provider and asks for a **public ID** (manual confirm).
+
+In `android/local.properties` (never commit secrets):
+
+```properties
+DISCORD_CLIENT_ID=...
+DISCORD_CLIENT_SECRET=...
+GOOGLE_CLIENT_ID=...
+```
+
+Register these redirect URIs with the providers:
+
+- Discord: `ygochecker://oauth/discord`
+- Google (OAuth Android / Web client with custom URI): `ygochecker://oauth/google`
+
+Discord needs both client id **and** secret for on-device token exchange (confidential client). Google works with a public client + PKCE when the redirect URI is allow-listed.
+
 ## User flow
 
 1. Open app → after splash, GET `update.json`.

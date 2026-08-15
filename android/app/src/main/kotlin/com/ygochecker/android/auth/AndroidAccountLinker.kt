@@ -49,6 +49,7 @@ class AndroidAccountLinker @Inject constructor(
         discordClientSecret = BuildConfig.DISCORD_CLIENT_SECRET.trim(),
         googleClientId = BuildConfig.GOOGLE_CLIENT_ID.trim(),
     )
+    override val authConfig: AuthClientConfig get() = config
 
     @Volatile private var pkceVerifier: String? = null
     @Volatile private var pendingProvider: LinkedAccountProvider? = null
@@ -66,6 +67,7 @@ class AndroidAccountLinker @Inject constructor(
     }
 
     override fun handleRedirect(uri: Uri) {
+        if (uri.scheme != "ygochecker" || uri.host != "oauth") return
         val provider = when (uri.lastPathSegment?.lowercase()) {
             "discord" -> LinkedAccountProvider.DISCORD
             "google" -> LinkedAccountProvider.GOOGLE
@@ -78,7 +80,8 @@ class AndroidAccountLinker @Inject constructor(
             }
             return
         }
-        val code = uri.getQueryParameter("code") ?: run {
+        val code = uri.getQueryParameter("code")
+        if (code.isNullOrBlank()) {
             scope.launch {
                 _events.emit(AccountLinkEvent.NeedsManualConfirm(provider))
             }
@@ -89,8 +92,8 @@ class AndroidAccountLinker @Inject constructor(
 
     private fun startDiscord(activity: Activity) {
         pendingProvider = LinkedAccountProvider.DISCORD
-        if (!config.discordConfigured) {
-            // Prefer Discord mobile; user confirms ID after return.
+        if (!isOAuthReady(LinkedAccountProvider.DISCORD)) {
+            // Without client secret, confidential Discord apps cannot finish token exchange on-device.
             openDiscordAppOrWeb(activity)
             scope.launch {
                 _events.emit(AccountLinkEvent.NeedsManualConfirm(LinkedAccountProvider.DISCORD))
@@ -114,11 +117,11 @@ class AndroidAccountLinker @Inject constructor(
 
     private fun startGoogle(activity: Activity) {
         pendingProvider = LinkedAccountProvider.GOOGLE
-        if (!config.googleConfigured) {
-            openUrl(activity, "https://accounts.google.com/")
+        if (!isOAuthReady(LinkedAccountProvider.GOOGLE)) {
             scope.launch {
                 _events.emit(AccountLinkEvent.NeedsManualConfirm(LinkedAccountProvider.GOOGLE))
             }
+            openUrl(activity, "https://accounts.google.com/")
             return
         }
         val verifier = newPkceVerifier()

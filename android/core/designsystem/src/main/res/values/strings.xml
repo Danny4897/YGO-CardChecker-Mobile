@@ -310,6 +310,8 @@
     <string name="profile_username">Username</string>
     <string name="profile_save_username">Save username</string>
     <string name="profile_pick_avatar">Choose avatar</string>
+    <string name="profile_avatar_emblem_hint">Pick a stylized duel emblem — original art, not card scans.</string>
+    <string name="profile_link_setup_hint">%1$s OAuth is not fully configured on this build. Open the provider, then paste your public ID below — or set client credentials in android/local.properties (see distribution README).</string>
     <string name="profile_clear_avatar">Clear</string>
     <string name="profile_linked_accounts">Linked accounts</string>
     <string name="profile_linked_security_note">Discord and Google open the provider app / browser to authorize. Only opaque IDs are stored (encrypted on-device). Never enter passwords here. Same login on another phone reconstitutes this identity.</string>
@@ -322,7 +324,7 @@
     <string name="profile_unlink">Unlink</string>
     <string name="profile_link_title">Link %1$s</string>
     <string name="profile_link_body">Paste your public ID / handle only. Do not paste passwords or recovery codes.</string>
-    <string name="profile_link_oauth_hint">Opens %1$s to authorize this app. After return, confirm if needed.</string>
+    <string name="profile_link_oauth_hint">OAuth is ready for %1$s. After the browser returns to the app, linking should complete automatically. If it does not, paste your public ID below.</string>
     <string name="profile_external_id">External ID</string>
     <string name="profile_friends">Friends</string>
     <string name="profile_friend_search">Search friends</string>

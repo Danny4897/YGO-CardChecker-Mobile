@@ -310,6 +310,8 @@
     <string name="profile_username">Username</string>
     <string name="profile_save_username">Salva username</string>
     <string name="profile_pick_avatar">Scegli avatar</string>
+    <string name="profile_avatar_emblem_hint">Scegli un emblema stilizzato — arte originale, non ritagli di carte.</string>
+    <string name="profile_link_setup_hint">OAuth %1$s non è configurato del tutto in questa build. Apri il provider, poi incolla sotto il tuo ID pubblico — oppure imposta i client ID in android/local.properties (vedi README distribution).</string>
     <string name="profile_clear_avatar">Azzera</string>
     <string name="profile_linked_accounts">Account collegati</string>
     <string name="profile_linked_security_note">Discord e Google aprono l’app / browser del provider per autorizzare. Solo ID opachi restano salvati (cifrati sul dispositivo). Non inserire password. Lo stesso login su un altro telefono ricostruisce questa identità.</string>
@@ -322,7 +324,7 @@
     <string name="profile_unlink">Scollega</string>
     <string name="profile_link_title">Collega %1$s</string>
     <string name="profile_link_body">Incolla solo ID / handle pubblici. Non inserire password o codici di recupero.</string>
-    <string name="profile_link_oauth_hint">Apre %1$s per autorizzare questa app. Al ritorno, conferma se serve.</string>
+    <string name="profile_link_oauth_hint">OAuth pronto per %1$s. Al ritorno dal browser il collegamento dovrebbe completarsi da solo. Se non succede, incolla sotto il tuo ID pubblico.</string>
     <string name="profile_external_id">ID esterno</string>
     <string name="profile_friends">Amici</string>
     <string name="profile_friend_search">Cerca amici</string>

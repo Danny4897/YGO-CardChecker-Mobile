@@ -1,31 +1,39 @@
 package com.ygochecker.core.model
 
 /**
- * Curated profile avatar monsters (passcode → display hint).
- * Users pick from this list instead of typing passcodes.
+ * Stylized profile emblems — original silhouettes, not Konami card art.
+ * Negative IDs are reserved for these presets (not YGOPRODeck passcodes).
  */
 object ProfileAvatarPresets {
-    data class Entry(val cardId: Int, val labelEn: String)
+    enum class Style {
+        AZURE_DRAKE,
+        ARCANE_ORB,
+        STAR_DUELIST,
+        ROSE_KNIGHT,
+        VOID_WARRIOR,
+        GOLDEN_SHIELD,
+        PHOENIX_CREST,
+        ICE_SERPENT,
+    }
+
+    data class Entry(
+        val id: Int,
+        val labelEn: String,
+        val style: Style,
+    )
 
     val all: List<Entry> = listOf(
-        Entry(89631139, "Blue-Eyes White Dragon"),
-        Entry(46986414, "Dark Magician"),
-        Entry(84012625, "Number 39: Utopia"),
-        Entry(44508094, "Stardust Dragon"),
-        Entry(93717133, "Galaxy-Eyes Photon Dragon"),
-        Entry(65192027, "Black Luster Soldier - Envoy of the Beginning"),
-        Entry(88264978, "Judgment Dragon"),
-        Entry(74677422, "Red-Eyes Black Dragon"),
-        Entry(23995346, "Blue-Eyes Ultimate Dragon"),
-        Entry(11082056, "The Winged Dragon of Ra"),
-        Entry(10000000, "Obelisk the Tormentor"),
-        Entry(10000020, "Slifer the Sky Dragon"),
-        Entry(16195942, "Dark Rebellion Xyz Dragon"),
-        Entry(73580471, "Black Rose Dragon"),
-        Entry(25862681, "Ancient Fairy Dragon"),
-        Entry(35952884, "Shooting Quasar Dragon"),
-        Entry(99267150, "Five-Headed Dragon"),
-        Entry(31876635, "Number 101: Silent Honor ARK"),
-        Entry(50321796, "Trishula, Dragon of the Ice Barrier"),
-    ).distinctBy { it.cardId }
+        Entry(-101, "Azure Drake", Style.AZURE_DRAKE),
+        Entry(-102, "Arcane Orb", Style.ARCANE_ORB),
+        Entry(-103, "Star Duelist", Style.STAR_DUELIST),
+        Entry(-104, "Rose Knight", Style.ROSE_KNIGHT),
+        Entry(-105, "Void Warrior", Style.VOID_WARRIOR),
+        Entry(-106, "Golden Shield", Style.GOLDEN_SHIELD),
+        Entry(-107, "Phoenix Crest", Style.PHOENIX_CREST),
+        Entry(-108, "Ice Serpent", Style.ICE_SERPENT),
+    )
+
+    fun isEmblem(id: Int?): Boolean = id != null && id < 0
+
+    fun entryFor(id: Int?): Entry? = id?.let { want -> all.firstOrNull { it.id == want } }
 }

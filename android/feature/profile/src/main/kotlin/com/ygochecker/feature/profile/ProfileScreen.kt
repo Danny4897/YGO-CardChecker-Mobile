@@ -6,6 +6,7 @@ import android.content.ContextWrapper
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -58,6 +59,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.ygochecker.core.common.AppResult
 import com.ygochecker.core.designsystem.DuelSpacing
+import com.ygochecker.core.designsystem.ProfileEmblem
 import com.ygochecker.core.designsystem.R as DesignR
 import com.ygochecker.core.designsystem.SettingsGroup
 import com.ygochecker.core.designsystem.ThemedScreenHeader
@@ -97,6 +99,8 @@ class ProfileViewModel @Inject constructor(
 
     var avatar by mutableStateOf<Card?>(null)
         private set
+    var avatarEmblem by mutableStateOf<ProfileAvatarPresets.Style?>(null)
+        private set
     var notice by mutableStateOf<String?>(null)
         private set
     var collectionCards by mutableStateOf<Map<Long, List<Card>>>(emptyMap())
@@ -105,7 +109,14 @@ class ProfileViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             profile.observeProfile().collect { p ->
-                avatar = p.avatarCardId?.let { resolveById.invoke(it) }
+                val id = p.avatarCardId
+                if (ProfileAvatarPresets.isEmblem(id)) {
+                    avatar = null
+                    avatarEmblem = ProfileAvatarPresets.entryFor(id)?.style
+                } else {
+                    avatarEmblem = null
+                    avatar = id?.let { resolveById.invoke(it) }
+                }
             }
         }
         viewModelScope.launch {
@@ -153,6 +164,10 @@ class ProfileViewModel @Inject constructor(
         }
     }
     fun unlink(provider: LinkedAccountProvider) = viewModelScope.launch { profile.unlinkAccount(provider) }
+    fun clearNotice() {
+        notice = null
+    }
+    fun isOAuthReady(provider: LinkedAccountProvider): Boolean = accountLinker.isOAuthReady(provider)
     fun startOAuth(activity: Activity, provider: LinkedAccountProvider) {
         accountLinker.startLink(activity, provider)
     }
@@ -225,7 +240,11 @@ fun ProfileRoute(vm: ProfileViewModel = hiltViewModel()) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
                     ) {
-                        Avatar(vm.avatar, onClick = { avatarPickerOpen = true })
+                        Avatar(
+                            card = vm.avatar,
+                            emblem = vm.avatarEmblem,
+                            onClick = { avatarPickerOpen = true },
+                        )
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(
                                 value = usernameDraft,
@@ -486,32 +505,32 @@ fun ProfileRoute(vm: ProfileViewModel = hiltViewModel()) {
             onDismissRequest = { avatarPickerOpen = false },
             title = { Text(stringResource(DesignR.string.profile_pick_avatar)) },
             text = {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(ProfileAvatarPresets.all, key = { it.cardId }) { entry ->
-                        val selected = user.avatarCardId == entry.cardId
-                        FilterChip(
-                            selected = selected,
-                            onClick = {
-                                vm.setAvatar(entry.cardId)
-                                avatarPickerOpen = false
-                            },
-                            label = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(context)
-                                            .data("https://images.ygoprodeck.com/images/cards_cropped/${entry.cardId}.jpg")
-                                            .build(),
-                                        contentDescription = entry.labelEn,
-                                        modifier = Modifier.size(36.dp).clip(CircleShape),
-                                        contentScale = ContentScale.Crop,
-                                    )
-                                    Text(entry.labelEn, style = MaterialTheme.typography.labelMedium)
-                                }
-                            },
-                        )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(DesignR.string.profile_avatar_emblem_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(ProfileAvatarPresets.all, key = { it.id }) { entry ->
+                            val selected = user.avatarCardId == entry.id
+                            FilterChip(
+                                selected = selected,
+                                onClick = {
+                                    vm.setAvatar(entry.id)
+                                    avatarPickerOpen = false
+                                },
+                                label = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        ProfileEmblem(entry.style, size = 36.dp)
+                                        Text(entry.labelEn, style = MaterialTheme.typography.labelMedium)
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             },
@@ -531,13 +550,17 @@ fun ProfileRoute(vm: ProfileViewModel = hiltViewModel()) {
 
     manualProvider?.let { provider ->
         AlertDialog(
-            onDismissRequest = { manualProvider = null },
+            onDismissRequest = { manualProvider = null; vm.clearNotice() },
             icon = { Icon(Icons.Default.Link, null) },
             title = { Text(stringResource(DesignR.string.profile_link_title, providerLabel(provider))) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        stringResource(DesignR.string.profile_link_oauth_hint, providerLabel(provider)),
+                        if (vm.isOAuthReady(provider)) {
+                            stringResource(DesignR.string.profile_link_oauth_hint, providerLabel(provider))
+                        } else {
+                            stringResource(DesignR.string.profile_link_setup_hint, providerLabel(provider))
+                        },
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Text(
@@ -557,10 +580,11 @@ fun ProfileRoute(vm: ProfileViewModel = hiltViewModel()) {
                 TextButton({
                     vm.linkManual(provider, linkDraft)
                     manualProvider = null
+                    vm.clearNotice()
                 }) { Text(stringResource(DesignR.string.profile_link)) }
             },
             dismissButton = {
-                TextButton({ manualProvider = null }) {
+                TextButton({ manualProvider = null; vm.clearNotice() }) {
                     Text(stringResource(DesignR.string.action_cancel))
                 }
             },
@@ -569,22 +593,32 @@ fun ProfileRoute(vm: ProfileViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun Avatar(card: Card?, onClick: () -> Unit) {
+private fun Avatar(
+    card: Card?,
+    emblem: ProfileAvatarPresets.Style?,
+    onClick: () -> Unit,
+) {
     val context = LocalContext.current
     Surface(
         shape = CircleShape,
         color = MaterialTheme.colorScheme.primaryContainer,
         modifier = Modifier.size(72.dp).clickable(onClick = onClick),
     ) {
-        if (card != null) {
-            AsyncImage(
-                model = ImageRequest.Builder(context).data(card.imageUrl).build(),
-                contentDescription = card.name,
-                modifier = Modifier.clip(CircleShape),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(18.dp))
+        when {
+            emblem != null -> ProfileEmblem(emblem, size = 72.dp)
+            card != null -> {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(card.imageUrl)
+                        .build(),
+                    contentDescription = card.name,
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+            else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Person, contentDescription = null)
+            }
         }
     }
 }

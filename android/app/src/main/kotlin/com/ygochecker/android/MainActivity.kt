@@ -184,12 +184,13 @@ private fun LocalizedResources(language: AppLanguage, content: @Composable () ->
 
 private data class Destination(val route: String, val label: Int, val icon: ImageVector)
 
-/** Primary tabs only — Profile & Settings live in the drawer. */
+/** Primary tabs — Settings stays in the drawer. */
 private val bottomDestinations = listOf(
     Destination("search", DesignR.string.nav_search, Icons.Default.Search),
     Destination("decks", DesignR.string.nav_decks, Icons.Default.Style),
     Destination("flow", DesignR.string.nav_flow, Icons.Default.AccountTree),
     Destination("overlay", DesignR.string.nav_overlay, Icons.Default.Visibility),
+    Destination("profile", DesignR.string.nav_profile, Icons.Default.Person),
 )
 
 private val drawerDestinations = listOf(

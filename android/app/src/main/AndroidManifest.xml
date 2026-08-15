@@ -32,7 +32,10 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="ygochecker" android:host="oauth" />
+                <data
+                    android:scheme="ygochecker"
+                    android:host="oauth"
+                    android:pathPrefix="/" />
             </intent-filter>
         </activity>
 

@@ -26,6 +26,14 @@ sealed interface AccountLinkEvent {
  */
 interface AccountLinker {
     val events: SharedFlow<AccountLinkEvent>
+    val authConfig: AuthClientConfig
     fun startLink(activity: Activity, provider: LinkedAccountProvider)
     fun handleRedirect(uri: Uri)
+    fun isOAuthReady(provider: LinkedAccountProvider): Boolean =
+        when (provider) {
+            LinkedAccountProvider.DISCORD ->
+                authConfig.discordConfigured && authConfig.discordClientSecret.isNotBlank()
+            LinkedAccountProvider.GOOGLE -> authConfig.googleConfigured
+            LinkedAccountProvider.KONAMI -> false
+        }
 }

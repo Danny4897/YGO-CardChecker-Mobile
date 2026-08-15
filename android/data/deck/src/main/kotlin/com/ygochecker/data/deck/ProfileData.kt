@@ -128,8 +128,8 @@ class RoomProfileRepository @Inject constructor(
 
     override suspend fun setAvatarCardId(cardId: Int?) {
         context.appPrefsStore.edit { prefs ->
-            if (cardId == null || cardId <= 0) prefs.remove(profileAvatarKey)
-            else prefs[profileAvatarKey] = cardId
+            if (cardId == null) prefs.remove(profileAvatarKey)
+            else prefs[profileAvatarKey] = cardId // negative IDs = stylized emblems
         }
     }
 

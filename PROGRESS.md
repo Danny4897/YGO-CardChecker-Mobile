@@ -4,11 +4,12 @@
 
 - `refactor/android-native`: **Flow redesign** — attuale motore nascosto dietro Coming Soon
 - **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
-- OAuth bindings esterni (OK lasciati così)
 - Sync cloud profilo/amici/mazzi pubblici
+- OAuth Discord/Google: serve `DISCORD_*` / `GOOGLE_CLIENT_ID` in `local.properties` per flusso automatico; altrimenti confirm manuale
 
 ## Done
 
+- 2026-08-16: **v0.2.0** — navbar su Profile; emblem stilizzati (no card crop); fix save avatar negativi; OAuth UX + redirect docs; FOSS update feed
 - 2026-08-15: **FOSS auto-update** — feed `update.json` + install all’avvio / Settings; docs in `android/distribution/`
 - 2026-08-15: **Verifier** — Android unit tests PASS; spot-check overlay/CardDetail/Extra OK; npm test 106 OK + build OK; harness validate FAIL (AGENTS.md sections, pre-existing)
 - 2026-08-15: **Complete banner** non-blocking + staple Extra **opzionali** (chip nel dialog Completa)
@@ -25,5 +26,5 @@
 - JDK via Android Studio `jbr`
 - APK: `android/app/build/outputs/apk/debug/app-debug.apk`
 - Prima di Completa mazzo: Impostazioni → **Scarica tutto**
-- Non commit finché non richiesto
+- Feed update: `android/distribution/update.json` su `main`
 - `ng test` plain può hangare in watch / Electron disconnect; usare `--watch=false --browsers=ChromeHeadless`
