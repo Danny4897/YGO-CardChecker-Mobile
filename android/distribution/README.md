@@ -14,23 +14,27 @@ https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/
 
 1. Bump in `android/app/build.gradle.kts`:
    - `versionCode` (+1)
-   - `versionName` (e.g. `0.2.0`)
-2. Build the APK (`assembleDebug` or `assembleRelease`).
-3. Create a **GitHub Release** tag `v0.2.0` and attach the APK (e.g. `app-debug.apk` / `app-release.apk`).
+   - `versionName` (e.g. `0.2.2`)
+2. Build the **release** APK (`assembleRelease`) — not debug. Debug APKs are `debuggable=true` and Play Protect flags them every time.
+3. Create a **GitHub Release** tag `v0.2.2` and attach `app-release.apk`.
 4. Update `android/distribution/update.json` on `main`:
 
 ```json
 {
-  "versionCode": 2,
-  "versionName": "0.2.0",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.0/app-debug.apk",
+  "versionCode": 4,
+  "versionName": "0.2.2",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.2/app-release.apk",
   "changelog": "What changed…"
 }
 ```
 
 5. Push `main` so raw.githubusercontent.com serves the new JSON.
 
-`versionCode` must be **greater** than what users already have. Prefer the same signing key across updates (debug↔release do not upgrade each other).
+`versionCode` must be **greater** than what users already have. Keep the **same signing key** across updates (release currently reuses the Android debug keystore so upgrades from early GitHub builds still work).
+
+### Play Protect
+
+Sideloaded apps can still be scanned once. Shipping **non-debuggable release** builds + a stable signing cert is what most FOSS apps do so Protect stops nagging after the first OK.
 
 ## OAuth (Discord / Google)
 

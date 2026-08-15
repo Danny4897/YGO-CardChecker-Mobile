@@ -3,26 +3,20 @@ package com.ygochecker.android.update
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.ygochecker.android.BuildConfig
+import com.ygochecker.core.designsystem.DuelUpdateDialog
 import com.ygochecker.core.designsystem.R as DesignR
 import com.ygochecker.core.domain.AppUpdateCheck
 import com.ygochecker.core.domain.AppUpdateManifest
@@ -122,57 +116,13 @@ fun AppUpdateHost(
     }
 
     state.prompt?.let { manifest ->
-        AlertDialog(
-            onDismissRequest = { if (!state.downloading) viewModel.dismissLater() },
-            title = {
-                Text(
-                    stringResource(
-                        DesignR.string.update_available_title,
-                        manifest.versionName,
-                    ),
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        stringResource(
-                            DesignR.string.update_available_body,
-                            BuildConfig.VERSION_NAME,
-                            manifest.versionName,
-                        ),
-                    )
-                    if (manifest.changelog.isNotBlank()) {
-                        Text(manifest.changelog)
-                    }
-                    if (state.downloading) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            CircularProgressIndicator()
-                            Text(stringResource(DesignR.string.update_downloading))
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        context.findActivity()?.let { viewModel.download(it) }
-                    },
-                    enabled = !state.downloading,
-                ) {
-                    Text(stringResource(DesignR.string.update_download))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = viewModel::dismissLater,
-                    enabled = !state.downloading,
-                ) {
-                    Text(stringResource(DesignR.string.update_later))
-                }
-            },
+        DuelUpdateDialog(
+            versionName = manifest.versionName,
+            currentVersionName = BuildConfig.VERSION_NAME,
+            changelog = manifest.changelog,
+            downloading = state.downloading,
+            onDownload = { context.findActivity()?.let { viewModel.download(it) } },
+            onLater = viewModel::dismissLater,
         )
     }
 

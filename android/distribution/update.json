@@ -1,6 +1,6 @@
 {
-  "versionCode": 3,
-  "versionName": "0.2.1",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.1/app-debug.apk",
-  "changelog": "Profile keeps bottom nav without a Profile tab · Discord/Google link UI hidden for now"
+  "versionCode": 4,
+  "versionName": "0.2.2",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.2/app-release.apk",
+  "changelog": "Dialog aggiornamento a tema duel · build release (non debug) per ridurre i prompt Play Protect · installer PackageInstaller"
 }

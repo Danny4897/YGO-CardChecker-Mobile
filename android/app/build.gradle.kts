@@ -12,8 +12,8 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.2.2"
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
         buildConfigField("String", "DISCORD_CLIENT_ID", "\"${propertyOrEmpty("DISCORD_CLIENT_ID")}\"")
         buildConfigField("String", "DISCORD_CLIENT_SECRET", "\"${propertyOrEmpty("DISCORD_CLIENT_SECRET")}\"")
@@ -34,6 +34,16 @@ android {
     }
     buildFeatures { compose = true; buildConfig = true }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    // FOSS distribution: release APK is NOT debuggable (Play Protect flags debug builds).
+    // Same debug keystore keeps in-place upgrades from earlier GitHub debug APKs.
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            isShrinkResources = false
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
 }
 dependencies {
     implementation(project(":core:common"))
