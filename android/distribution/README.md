@@ -5,10 +5,10 @@ Repo: [Danny4897/YGO-CardChecker-Mobile](https://github.com/Danny4897/YGO-CardCh
 The app checks this feed on launch (and from Settings → Updates):
 
 ```text
-https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/distribution/update.json
+https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json
 ```
 
-(Default is baked into `BuildConfig.UPDATE_FEED_URL`. Override in `android/local.properties` if needed.)
+(`raw.githubusercontent.com` caches ~5 minutes and can hide a fresh release — prefer jsDelivr. Override in `android/local.properties` with `UPDATE_FEED_URL=` if needed.)
 
 ## Each release
 
@@ -28,7 +28,7 @@ https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/
 }
 ```
 
-5. Push `main` so raw.githubusercontent.com serves the new JSON.
+5. Push `main` so the feed URL above serves the new JSON (jsDelivr usually refreshes within seconds; purge with `https://purge.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json` if needed).
 
 `versionCode` must be **greater** than what users already have. Keep the **same signing key** across updates (release currently reuses the Android debug keystore so upgrades from early GitHub builds still work).
 

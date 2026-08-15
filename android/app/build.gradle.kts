@@ -12,28 +12,28 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.2.8"
+        versionCode = 11
+        versionName = "0.2.9"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Check update più affidabile (no cache CDN stale)\\n• Controlla aggiornamenti ripropone anche se avevi scelto Più tardi\\n• Shell nav 0.2.7: drawer sopra la bottom bar + swipe tab",
+                "• Feed aggiornamenti su jsDelivr (niente più cache GitHub raw di 5 minuti)\\n• Check update più affidabile",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
         buildConfigField("String", "DISCORD_CLIENT_ID", "\"${propertyOrEmpty("DISCORD_CLIENT_ID")}\"")
         buildConfigField("String", "DISCORD_CLIENT_SECRET", "\"${propertyOrEmpty("DISCORD_CLIENT_SECRET")}\"")
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${propertyOrEmpty("GOOGLE_CLIENT_ID")}\"")
-        // FOSS in-app updates — override with UPDATE_FEED_URL in local.properties if needed.
+        // FOSS in-app updates — jsDelivr (GitHub raw CDN can stay stale for ~5 minutes).
         buildConfigField(
             "String",
             "UPDATE_FEED_URL",
             "\"${propertyOrDefault(
                 "UPDATE_FEED_URL",
-                "https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/distribution/update.json",
+                "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json",
             )}\"",
         )
     }

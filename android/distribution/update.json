@@ -1,6 +1,6 @@
 {
-  "versionCode": 10,
-  "versionName": "0.2.8",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.8/app-release.apk",
-  "changelog": "Fix check aggiornamenti (cache + ripropone dopo Più tardi) · include nav shell 0.2.7"
+  "versionCode": 11,
+  "versionName": "0.2.9",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.9/app-release.apk",
+  "changelog": "Feed aggiornamenti via jsDelivr (fix cache GitHub) · nav shell + check affidabile"
 }
