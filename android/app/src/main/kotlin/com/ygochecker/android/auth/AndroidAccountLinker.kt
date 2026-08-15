@@ -1,7 +1,6 @@
 package com.ygochecker.android.auth
 
 import android.app.Activity
-import android.content.Intent
 import android.net.Uri
 import android.util.Base64
 import androidx.browser.customtabs.CustomTabsIntent
@@ -92,17 +91,22 @@ class AndroidAccountLinker @Inject constructor(
 
     private fun startDiscord(activity: Activity) {
         pendingProvider = LinkedAccountProvider.DISCORD
-        if (!isOAuthReady(LinkedAccountProvider.DISCORD)) {
-            // Without client secret, confidential Discord apps cannot finish token exchange on-device.
-            openDiscordAppOrWeb(activity)
+        // Discord's consent screen requires a registered Application client_id.
+        if (!config.discordConfigured) {
             scope.launch {
-                _events.emit(AccountLinkEvent.NeedsManualConfirm(LinkedAccountProvider.DISCORD))
+                _events.emit(
+                    AccountLinkEvent.Failed(
+                        LinkedAccountProvider.DISCORD,
+                        "profile.link_oauth_not_configured",
+                    ),
+                )
             }
             return
         }
         val verifier = newPkceVerifier()
         pkceVerifier = verifier
         val challenge = pkceChallenge(verifier)
+        // Classic Discord authorize / consent UI (Custom Tabs). Token exchange still needs secret.
         val uri = Uri.parse("https://discord.com/api/oauth2/authorize").buildUpon()
             .appendQueryParameter("client_id", config.discordClientId)
             .appendQueryParameter("response_type", "code")
@@ -113,15 +117,25 @@ class AndroidAccountLinker @Inject constructor(
             .appendQueryParameter("prompt", "consent")
             .build()
         openUrl(activity, uri.toString())
+        if (config.discordClientSecret.isBlank()) {
+            // Consent window still opens; without secret we cannot finish token exchange alone.
+            scope.launch {
+                _events.emit(AccountLinkEvent.NeedsManualConfirm(LinkedAccountProvider.DISCORD))
+            }
+        }
     }
 
     private fun startGoogle(activity: Activity) {
         pendingProvider = LinkedAccountProvider.GOOGLE
-        if (!isOAuthReady(LinkedAccountProvider.GOOGLE)) {
+        if (!config.googleConfigured) {
             scope.launch {
-                _events.emit(AccountLinkEvent.NeedsManualConfirm(LinkedAccountProvider.GOOGLE))
+                _events.emit(
+                    AccountLinkEvent.Failed(
+                        LinkedAccountProvider.GOOGLE,
+                        "profile.link_oauth_not_configured",
+                    ),
+                )
             }
-            openUrl(activity, "https://accounts.google.com/")
             return
         }
         val verifier = newPkceVerifier()
@@ -228,18 +242,6 @@ class AndroidAccountLinker @Inject constructor(
             JSONObject(resp.body?.string().orEmpty())
         }
         return me.optString("email").ifBlank { me.optString("sub") }.ifBlank { null }
-    }
-
-    private fun openDiscordAppOrWeb(activity: Activity) {
-        val discord = Intent(Intent.ACTION_VIEW, Uri.parse("https://discord.com/app")).apply {
-            setPackage("com.discord")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        try {
-            activity.startActivity(discord)
-        } catch (_: Exception) {
-            openUrl(activity, "https://discord.com/login")
-        }
     }
 
     private fun openUrl(activity: Activity, url: String) {

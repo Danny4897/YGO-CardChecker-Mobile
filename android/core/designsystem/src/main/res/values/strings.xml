@@ -314,7 +314,7 @@
     <string name="profile_link_setup_hint">%1$s OAuth is not fully configured on this build. Open the provider, then paste your public ID below — or set client credentials in android/local.properties (see distribution README).</string>
     <string name="profile_clear_avatar">Clear</string>
     <string name="profile_linked_accounts">Linked accounts</string>
-    <string name="profile_linked_security_note">Discord and Google open the provider app / browser to authorize. Only opaque IDs are stored (encrypted on-device). Never enter passwords here. Same login on another phone reconstitutes this identity.</string>
+    <string name="profile_linked_security_note">Discord and Google open the provider consent screen to authorize this app. Only opaque IDs are stored (encrypted on-device). Never enter passwords. Same login on another phone reconstitutes this identity — deck / replay / profile sync still needs a cloud backend (coming later).</string>
     <string name="profile_provider_discord">Discord</string>
     <string name="profile_provider_google">Google</string>
     <string name="profile_provider_konami">Konami</string>
@@ -395,6 +395,7 @@
     <string name="nav_drawer_tagline">Build · Check · Duel</string>
     <string name="error_profile_link_oauth_denied">Authorization was cancelled.</string>
     <string name="error_profile_link_oauth_failed">Could not finish provider login. Check client IDs in local.properties or confirm the ID manually.</string>
+    <string name="error_profile_link_oauth_not_configured">Discord/Google OAuth is not configured in this build. Add DISCORD_CLIENT_ID + DISCORD_CLIENT_SECRET (and GOOGLE_CLIENT_ID) in android/local.properties, then rebuild.</string>
     <string name="update_available_title">Update %1$s</string>
     <string name="update_available_body">You have %1$s. Version %2$s is ready to install.</string>
     <string name="update_download">Download &amp; install</string>

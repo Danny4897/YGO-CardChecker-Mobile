@@ -49,7 +49,16 @@ Register these redirect URIs with the providers:
 - Discord: `ygochecker://oauth/discord`
 - Google (OAuth Android / Web client with custom URI): `ygochecker://oauth/google`
 
+Discord Developer Portal checklist:
+
+1. Create an Application → OAuth2
+2. Add redirect `ygochecker://oauth/discord`
+3. Copy **Client ID** + **Client Secret** into `local.properties`
+4. Rebuild the APK (credentials are baked into `BuildConfig`)
+
 Discord needs both client id **and** secret for on-device token exchange (confidential client). Google works with a public client + PKCE when the redirect URI is allow-listed.
+
+Without credentials, tapping Discord/Google shows a clear error instead of a fake login screen.
 
 ## User flow
 

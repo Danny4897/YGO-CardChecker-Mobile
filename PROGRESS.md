@@ -4,12 +4,14 @@
 
 - `refactor/android-native`: **Flow redesign** — attuale motore nascosto dietro Coming Soon
 - **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
-- Sync cloud profilo/amici/mazzi pubblici
-- OAuth Discord/Google: serve `DISCORD_*` / `GOOGLE_CLIENT_ID` in `local.properties` per flusso automatico; altrimenti confirm manuale
+- **Cloud sync** profilo/amici/mazzi/replay keyed by Discord/Google subject (OAuth alone ≠ sync)
+- OAuth Discord/Google: serve `DISCORD_CLIENT_ID` + `DISCORD_CLIENT_SECRET` (+ `GOOGLE_CLIENT_ID`) in `local.properties` per consent window + token exchange
 
 ## Done
 
-- 2026-08-16: **v0.2.0** — navbar su Profile; emblem stilizzati (no card crop); fix save avatar negativi; OAuth UX + redirect docs; FOSS update feed
+- 2026-08-16: **v0.2.1** — Profile bottom bar senza tab Profile; sezione Discord/Google nascosta (OAuth dopo)
+- 2026-08-16: **Navbar Profile** — bottom bar visibile su Profile **senza** tab Profile; Discord non apre più l’app Discord fake
+- 2026-08-16: **v0.2.0** — emblem stilizzati; OAuth UX; FOSS update feed
 - 2026-08-15: **FOSS auto-update** — feed `update.json` + install all’avvio / Settings; docs in `android/distribution/`
 - 2026-08-15: **Verifier** — Android unit tests PASS; spot-check overlay/CardDetail/Extra OK; npm test 106 OK + build OK; harness validate FAIL (AGENTS.md sections, pre-existing)
 - 2026-08-15: **Complete banner** non-blocking + staple Extra **opzionali** (chip nel dialog Completa)

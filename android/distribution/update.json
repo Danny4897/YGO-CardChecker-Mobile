@@ -1,6 +1,6 @@
 {
-  "versionCode": 2,
-  "versionName": "0.2.0",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.0/app-debug.apk",
-  "changelog": "Profile bottom nav · stylized duel emblems (no card art) · clearer Discord/Google link flow · OAuth deep-link polish"
+  "versionCode": 3,
+  "versionName": "0.2.1",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.1/app-debug.apk",
+  "changelog": "Profile keeps bottom nav without a Profile tab · Discord/Google link UI hidden for now"
 }

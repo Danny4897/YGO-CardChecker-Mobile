@@ -184,19 +184,21 @@ private fun LocalizedResources(language: AppLanguage, content: @Composable () ->
 
 private data class Destination(val route: String, val label: Int, val icon: ImageVector)
 
-/** Primary tabs — Settings stays in the drawer. */
+/** Primary tabs only — Profile & Settings stay in the drawer. */
 private val bottomDestinations = listOf(
     Destination("search", DesignR.string.nav_search, Icons.Default.Search),
     Destination("decks", DesignR.string.nav_decks, Icons.Default.Style),
     Destination("flow", DesignR.string.nav_flow, Icons.Default.AccountTree),
     Destination("overlay", DesignR.string.nav_overlay, Icons.Default.Visibility),
-    Destination("profile", DesignR.string.nav_profile, Icons.Default.Person),
 )
 
 private val drawerDestinations = listOf(
     Destination("profile", DesignR.string.nav_profile, Icons.Default.Person),
     Destination("settings", DesignR.string.nav_settings, Icons.Default.Settings),
 )
+
+/** Keep the same bottom bar chrome on Profile (no Profile tab item). */
+private val routesWithBottomBar = bottomDestinations.map { it.route } + "profile"
 
 @Composable
 private fun AppShell(onCheckUpdates: () -> Unit = {}) {
@@ -206,7 +208,7 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
-    val showBottomBar = route in bottomDestinations.map { it.route }
+    val showBottomBar = route in routesWithBottomBar
 
     CompositionLocalProvider(LocalOpenDrawer provides openDrawer) {
         ModalNavigationDrawer(

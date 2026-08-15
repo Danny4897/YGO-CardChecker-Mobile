@@ -188,7 +188,6 @@ fun ProfileRoute(vm: ProfileViewModel = hiltViewModel()) {
     val replays by vm.replays.collectAsStateWithLifecycle()
     val decks by vm.decks.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val activity = remember(context) { context.findActivity() }
 
     var usernameDraft by remember(user.username) { mutableStateOf(user.username) }
     var friendDraft by remember { mutableStateOf("") }
@@ -197,6 +196,7 @@ fun ProfileRoute(vm: ProfileViewModel = hiltViewModel()) {
     var replayTitle by remember { mutableStateOf("") }
     var replayNote by remember { mutableStateOf("") }
     var avatarPickerOpen by remember { mutableStateOf(false) }
+    // Kept for when account linking returns (OAuth deep-link confirm).
     var manualProvider by remember { mutableStateOf<LinkedAccountProvider?>(null) }
     var linkDraft by remember { mutableStateOf("") }
     var expandedCollection by remember { mutableStateOf<Long?>(null) }
@@ -263,57 +263,7 @@ fun ProfileRoute(vm: ProfileViewModel = hiltViewModel()) {
                     }
                 }
             }
-            item {
-                SettingsGroup(title = stringResource(DesignR.string.profile_linked_accounts)) {
-                    Text(
-                        stringResource(DesignR.string.profile_linked_security_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    LinkedAccountProvider.entries.forEach { provider ->
-                        val linked = user.linkedAccounts[provider]
-                        Row(
-                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(providerLabel(provider), style = MaterialTheme.typography.titleSmall)
-                                Text(
-                                    if (linked != null) {
-                                        stringResource(DesignR.string.profile_linked_as, maskId(linked))
-                                    } else {
-                                        stringResource(DesignR.string.profile_not_linked)
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            if (linked != null) {
-                                IconButton(onClick = { vm.unlink(provider) }) {
-                                    Icon(Icons.Default.LinkOff, stringResource(DesignR.string.profile_unlink))
-                                }
-                            } else {
-                                FilledTonalButton(
-                                    onClick = {
-                                        if (activity != null) {
-                                            vm.startOAuth(activity, provider)
-                                        } else {
-                                            manualProvider = provider
-                                            linkDraft = ""
-                                        }
-                                    },
-                                ) {
-                                    Icon(Icons.Default.Link, null, Modifier.size(18.dp))
-                                    Text(
-                                        stringResource(DesignR.string.profile_link),
-                                        modifier = Modifier.padding(start = 6.dp),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            // Account linking (Discord / Google / Konami) hidden until OAuth + cloud sync ship.
             item {
                 SettingsGroup(title = stringResource(DesignR.string.profile_friends)) {
                     OutlinedTextField(

@@ -21,6 +21,7 @@ fun errorStringResource(errorKey: String): Int = when (errorKey) {
     "profile.friend_invalid" -> R.string.error_profile_friend_invalid
     "profile.link_oauth_denied" -> R.string.error_profile_link_oauth_denied
     "profile.link_oauth_failed" -> R.string.error_profile_link_oauth_failed
+    "profile.link_oauth_not_configured" -> R.string.error_profile_link_oauth_not_configured
     "profile.replay_invalid" -> R.string.error_profile_replay_invalid
     "profile.collection_name_required" -> R.string.profile_collection_name_required
     "update.network" -> R.string.error_update_network

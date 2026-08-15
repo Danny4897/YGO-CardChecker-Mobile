@@ -314,7 +314,7 @@
     <string name="profile_link_setup_hint">OAuth %1$s non è configurato del tutto in questa build. Apri il provider, poi incolla sotto il tuo ID pubblico — oppure imposta i client ID in android/local.properties (vedi README distribution).</string>
     <string name="profile_clear_avatar">Azzera</string>
     <string name="profile_linked_accounts">Account collegati</string>
-    <string name="profile_linked_security_note">Discord e Google aprono l’app / browser del provider per autorizzare. Solo ID opachi restano salvati (cifrati sul dispositivo). Non inserire password. Lo stesso login su un altro telefono ricostruisce questa identità.</string>
+    <string name="profile_linked_security_note">Discord e Google aprono la schermata di autorizzazione del provider. Solo ID opachi restano salvati (cifrati sul dispositivo). Non inserire password. Lo stesso login su un altro telefono ricostruisce questa identità — sync di mazzi / replay / profilo richiede ancora un backend cloud (in arrivo).</string>
     <string name="profile_provider_discord">Discord</string>
     <string name="profile_provider_google">Google</string>
     <string name="profile_provider_konami">Konami</string>
@@ -375,6 +375,7 @@
     <string name="error_profile_friend_invalid">Il nome amico deve avere almeno 2 caratteri.</string>
     <string name="error_profile_link_oauth_denied">Autorizzazione annullata.</string>
     <string name="error_profile_link_oauth_failed">Login provider non riuscito. Controlla i client ID in local.properties oppure conferma l’ID a mano.</string>
+    <string name="error_profile_link_oauth_not_configured">OAuth Discord/Google non configurato in questa build. Aggiungi DISCORD_CLIENT_ID + DISCORD_CLIENT_SECRET (e GOOGLE_CLIENT_ID) in android/local.properties, poi ricostruisci.</string>
     <string name="coming_soon_badge">Coming soon</string>
     <string name="coming_soon_title">In costruzione</string>
     <string name="flow_coming_soon_body">Flow viene ridisegnato come lab stile MDPRO più chiaro. Il motore attuale è nascosto finché la nuova UX non è pronta.</string>
