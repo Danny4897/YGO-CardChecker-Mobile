@@ -26,6 +26,7 @@ class HttpAppUpdateRepository @Inject constructor(
     private val http: OkHttpClient,
 ) : AppUpdateRepository {
     private val skippedKey = intPreferencesKey("update_skipped_version_code")
+    private val lastSeenKey = intPreferencesKey("whats_new_last_seen_version_code")
 
     override val feedUrl: String = BuildConfig.UPDATE_FEED_URL.trim()
 
@@ -55,6 +56,13 @@ class HttpAppUpdateRepository @Inject constructor(
 
     override suspend fun setSkippedVersionCode(versionCode: Int) {
         context.appPrefsStore.edit { it[skippedKey] = versionCode }
+    }
+
+    override suspend fun lastSeenVersionCode(): Int =
+        context.appPrefsStore.data.first()[lastSeenKey] ?: 0
+
+    override suspend fun setLastSeenVersionCode(versionCode: Int) {
+        context.appPrefsStore.edit { it[lastSeenKey] = versionCode }
     }
 
     companion object {

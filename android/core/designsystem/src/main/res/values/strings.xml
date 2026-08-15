@@ -396,6 +396,10 @@
     <string name="error_profile_link_oauth_denied">Authorization was cancelled.</string>
     <string name="error_profile_link_oauth_failed">Could not finish provider login. Check client IDs in local.properties or confirm the ID manually.</string>
     <string name="error_profile_link_oauth_not_configured">Discord/Google OAuth is not configured in this build. Add DISCORD_CLIENT_ID + DISCORD_CLIENT_SECRET (and GOOGLE_CLIENT_ID) in android/local.properties, then rebuild.</string>
+    <string name="whats_new_eyebrow">YGO Checker · FOSS</string>
+    <string name="whats_new_title">What\'s new in %1$s</string>
+    <string name="whats_new_label">Patch notes</string>
+    <string name="whats_new_continue">Enter the arena</string>
     <string name="update_available_eyebrow">YGO Checker · FOSS</string>
     <string name="update_available_title">Version %1$s ready</string>
     <string name="update_available_body">From %1$s to %2$s — same arena, updated rules.</string>

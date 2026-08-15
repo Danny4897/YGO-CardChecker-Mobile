@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.ygochecker.android.BuildConfig
 import com.ygochecker.core.designsystem.DuelUpdateDialog
+import com.ygochecker.core.designsystem.DuelWhatsNewDialog
 import com.ygochecker.core.designsystem.R as DesignR
 import com.ygochecker.core.domain.AppUpdateCheck
 import com.ygochecker.core.domain.AppUpdateManifest
@@ -34,6 +35,12 @@ data class UpdateUiState(
     val downloading: Boolean = false,
     val statusMessage: String? = null,
     val needPermission: Boolean = false,
+    val whatsNew: WhatsNewPayload? = null,
+)
+
+data class WhatsNewPayload(
+    val versionName: String,
+    val changelog: String,
 )
 
 @HiltViewModel
@@ -46,11 +53,36 @@ class AppUpdateViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     fun checkOnLaunch() = viewModelScope.launch {
+        maybeShowWhatsNew()
         when (val result = checkUpdate.invoke(BuildConfig.VERSION_CODE)) {
             is AppUpdateCheck.Available -> _state.update { it.copy(prompt = result.manifest) }
             is AppUpdateCheck.Failed -> Unit // silent on launch
             else -> Unit
         }
+    }
+
+    private suspend fun maybeShowWhatsNew() {
+        val installed = BuildConfig.VERSION_CODE
+        val seen = repo.lastSeenVersionCode()
+        if (seen >= installed) return
+        val notes = BuildConfig.WHATS_NEW.trim()
+        if (notes.isEmpty()) {
+            repo.setLastSeenVersionCode(installed)
+            return
+        }
+        _state.update {
+            it.copy(
+                whatsNew = WhatsNewPayload(
+                    versionName = BuildConfig.VERSION_NAME,
+                    changelog = notes.replace("\\n", "\n"),
+                ),
+            )
+        }
+    }
+
+    fun dismissWhatsNew() = viewModelScope.launch {
+        repo.setLastSeenVersionCode(BuildConfig.VERSION_CODE)
+        _state.update { it.copy(whatsNew = null) }
     }
 
     /** Manual check from Settings — surfaces UpToDate / Failed. */
@@ -115,7 +147,17 @@ fun AppUpdateHost(
         LaunchedEffect(Unit) { viewModel.checkOnLaunch() }
     }
 
+    state.whatsNew?.let { payload ->
+        DuelWhatsNewDialog(
+            versionName = payload.versionName,
+            changelog = payload.changelog,
+            onDismiss = viewModel::dismissWhatsNew,
+        )
+    }
+
     state.prompt?.let { manifest ->
+        // Prefer what's-new first after an upgrade; then offer a newer remote if any.
+        if (state.whatsNew != null) return@let
         DuelUpdateDialog(
             versionName = manifest.versionName,
             currentVersionName = BuildConfig.VERSION_NAME,

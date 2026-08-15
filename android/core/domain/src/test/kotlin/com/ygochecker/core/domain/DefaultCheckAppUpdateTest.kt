@@ -39,5 +39,7 @@ class DefaultCheckAppUpdateTest {
             if (remote == null) AppResult.Err(AppError("update.network")) else AppResult.Ok(remote)
         override suspend fun skippedVersionCode() = skipped
         override suspend fun setSkippedVersionCode(versionCode: Int) = Unit
+        override suspend fun lastSeenVersionCode() = 0
+        override suspend fun setLastSeenVersionCode(versionCode: Int) = Unit
     }
 }

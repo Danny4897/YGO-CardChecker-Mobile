@@ -26,6 +26,9 @@ interface AppUpdateRepository {
     suspend fun fetchManifest(): AppResult<AppUpdateManifest>
     suspend fun skippedVersionCode(): Int
     suspend fun setSkippedVersionCode(versionCode: Int)
+    /** Last version whose “what’s new” dialog was shown. */
+    suspend fun lastSeenVersionCode(): Int
+    suspend fun setLastSeenVersionCode(versionCode: Int)
 }
 
 fun interface CheckAppUpdate {

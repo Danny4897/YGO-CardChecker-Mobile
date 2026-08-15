@@ -138,15 +138,7 @@ private fun LocalizedApp(viewModel: AppShellViewModel = hiltViewModel()) {
             if (showSplash) {
                 DuelEntranceSplash(
                     onFinished = { showSplash = false },
-                    holdMs = 1100L,
-                    logo = {
-                        Image(
-                            painter = painterResource(R.drawable.ic_launcher_foreground),
-                            contentDescription = null,
-                            modifier = Modifier.size(120.dp),
-                            contentScale = ContentScale.Fit,
-                        )
-                    },
+                    holdMs = 1200L,
                 )
             } else {
                 val updateVm: AppUpdateViewModel = hiltViewModel()

@@ -396,6 +396,10 @@
     <string name="profile_replays_empty">Nessun replay ancora.</string>
     <string name="error_profile_replay_invalid">Il titolo replay deve avere almeno 2 caratteri.</string>
     <string name="nav_drawer_tagline">Costruisci · Controlla · Duella</string>
+    <string name="whats_new_eyebrow">YGO Checker · FOSS</string>
+    <string name="whats_new_title">Novità della %1$s</string>
+    <string name="whats_new_label">Resoconto del duello</string>
+    <string name="whats_new_continue">Entra nell’arena</string>
     <string name="update_available_eyebrow">YGO Checker · FOSS</string>
     <string name="update_available_title">Nuova versione %1$s</string>
     <string name="update_available_body">Dal tuo %1$s al %2$s — stessa arena, regole aggiornate.</string>

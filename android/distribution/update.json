@@ -1,6 +1,6 @@
 {
-  "versionCode": 4,
-  "versionName": "0.2.2",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.2/app-release.apk",
-  "changelog": "Dialog aggiornamento a tema duel · build release (non debug) per ridurre i prompt Play Protect · installer PackageInstaller"
+  "versionCode": 5,
+  "versionName": "0.2.3",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.2.3/app-release.apk",
+  "changelog": "Ingresso Duel Disk + ologramma · shuffle import · resoconto novità post-update"
 }

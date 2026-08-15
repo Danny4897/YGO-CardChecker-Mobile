@@ -94,7 +94,7 @@ import com.ygochecker.core.designsystem.CardDetailSheet
 import com.ygochecker.core.designsystem.CardDetailState
 import com.ygochecker.core.designsystem.CollectionPickOption
 import com.ygochecker.core.designsystem.DeckMetaRow
-import com.ygochecker.core.designsystem.DuelEntranceSplash
+import com.ygochecker.core.designsystem.DuelDeckForgeSplash
 import com.ygochecker.core.designsystem.DuelSpacing
 import com.ygochecker.core.designsystem.DuelWorkingBanner
 import com.ygochecker.core.designsystem.EmptyState
@@ -441,12 +441,11 @@ import javax.inject.Inject
                 .padding(bottom = if (vm.completeBusy) 56.dp else 0.dp),
         )
         if (showForgeSplash) {
-            DuelEntranceSplash(
+            DuelDeckForgeSplash(
                 onFinished = { showForgeSplash = false },
                 brand = stringResource(DesignR.string.import_forge_title),
                 tagline = stringResource(DesignR.string.import_forge_tagline),
                 holdMs = 1100L,
-                forgeMode = true,
             )
         }
         if (vm.completeBusy) {
