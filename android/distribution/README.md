@@ -34,7 +34,7 @@ https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/
 
 ### Play Protect
 
-Sideloaded apps can still be scanned once. Shipping **non-debuggable release** builds + a stable signing cert is what most FOSS apps do so Protect stops nagging after the first OK.
+Sideloaded FOSS apps are scanned by Play Protect on **every** APK install/update — that is OS policy, not something the app can fully disable. Shipping **non-debuggable release** builds + a stable signing cert is what most FOSS apps do so Protect stops treating the developer as brand-new. Users can tap **Don't send** on the analysis prompt; it should not block the install.
 
 ## OAuth (Discord / Google)
 

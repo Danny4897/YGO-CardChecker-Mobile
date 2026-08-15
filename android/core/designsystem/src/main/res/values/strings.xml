@@ -409,7 +409,7 @@
     <string name="update_downloading">Summoning…</string>
     <string name="update_download_percent">%1$d%% downloaded</string>
     <string name="update_install_confirm_hint">Confirm the install in the system screen that just opened.</string>
-    <string name="update_install_reopen_hint">When Android finishes, reopen YGO Checker from the launcher to use the new version.</string>
+    <string name="update_install_reopen_hint">When Android finishes, reopen YGO Checker from the launcher. Play Protect may scan sideloaded FOSS updates once — choose Don\'t send if you trust this build.</string>
     <string name="update_install_got_it">Got it</string>
     <string name="update_download_failed">Download or install failed. Check the network, allow installs from this app, and try again.</string>
     <string name="update_permission_title">Allow installs</string>

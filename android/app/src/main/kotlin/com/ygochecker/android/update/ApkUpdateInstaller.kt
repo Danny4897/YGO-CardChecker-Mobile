@@ -111,10 +111,8 @@ class ApkUpdateInstaller @Inject constructor(
             setDataAndType(uri, "application/vnd.android.package-archive")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            // Some OEMs need the installer resolved explicitly.
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
-        // Grant to known package-installer packages when present.
         listOf(
             "com.google.android.packageinstaller",
             "com.android.packageinstaller",
@@ -130,7 +128,12 @@ class ApkUpdateInstaller @Inject constructor(
                 // Package may be absent on this device.
             }
         }
-        context.startActivity(Intent.createChooser(intent, null))
+        // Prefer the system installer directly — createChooser can look more "unknown" to Play Protect.
+        try {
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            context.startActivity(Intent.createChooser(intent, null))
+        }
     }
 
     private fun looksLikeApk(file: File): Boolean {

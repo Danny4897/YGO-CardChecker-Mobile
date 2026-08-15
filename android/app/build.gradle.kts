@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.2.5"
+        versionCode = 8
+        versionName = "0.2.6"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Fix import YDKE: non dice più «Sei offline» a torto\\n• Attende il pack catalogo prima di risolvere i passcode\\n• Fix install aggiornamenti (0.2.4)",
+                "• Fix YDKE: YGOPRODeck non fa più fallire tutto il mazzo se un passcode è sconosciuto\\n• Compose import: solo animazione dopo successo (nessun cambio logica)\\n• Nota Play Protect sugli update sideload",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.

@@ -409,18 +409,24 @@ class RoomCardRepository @Inject constructor(
         val unique = ids.filter { it > 0 }.distinct()
         if (unique.isEmpty()) return AppResult.Ok(emptyList())
 
-        val local = dao.getByIds(unique).map(CardEntity::toModel).associateBy(Card::id)
+        // Room/SQLite has a bound-parameter limit — chunk large YDKE lists.
+        val local = unique.chunked(400)
+            .flatMap { dao.getByIds(it) }
+            .map(CardEntity::toModel)
+            .associateBy(Card::id)
         val missing = unique.filterNot(local::containsKey)
         if (missing.isEmpty()) return AppResult.Ok(unique.mapNotNull(local::get))
 
-        // Fill gaps from YGOPRODeck when possible. Network failure must NOT look like
-        // "you're offline" for YDKE/YDK import — report unresolved passcodes instead.
+        // Fill gaps from YGOPRODeck when possible. Never surface a fake "offline"
+        // error for import — report unresolved passcodes instead.
         val remote = try {
             api.fetchByIds(missing, language = null)
         } catch (_: Exception) {
             emptyList()
         }
-        if (remote.isNotEmpty()) dao.insertAll(remote.map(Card::toEntity))
+        if (remote.isNotEmpty()) {
+            remote.map(Card::toEntity).chunked(400).forEach { dao.insertAll(it) }
+        }
         val merged = local + remote.associateBy(Card::id)
         val stillMissing = unique.filterNot(merged::containsKey)
         return if (stillMissing.isNotEmpty()) {

@@ -24,7 +24,21 @@ class YgoProDeckClient @Inject constructor(
         withContext(Dispatchers.IO) {
             val unique = ids.filter { it > 0 }.distinct()
             if (unique.isEmpty()) return@withContext emptyList()
-            unique.chunked(CHUNK_SIZE).flatMap { chunk -> fetchChunk(chunk, language) }
+            unique.chunked(CHUNK_SIZE).flatMap { chunk ->
+                try {
+                    fetchChunk(chunk, language)
+                } catch (_: IOException) {
+                    // YGOPRODeck returns HTTP 400 for the whole batch if any id is unknown.
+                    // Resolve survivors one-by-one so a single bad passcode cannot wipe the import.
+                    chunk.flatMap { id ->
+                        try {
+                            fetchChunk(listOf(id), language)
+                        } catch (_: IOException) {
+                            emptyList()
+                        }
+                    }
+                }
+            }
         }
 
     /** Fuzzy name search (`fname`) — same as web `YgoApiService.searchCardsPage$`. */
@@ -97,8 +111,10 @@ class YgoProDeckClient @Inject constructor(
     private fun execute(url: okhttp3.HttpUrl): List<Card> {
         val request = Request.Builder().url(url).get().header("Accept", "application/json").build()
         http.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("YGOPRODeck HTTP ${response.code}")
             val body = response.body?.string().orEmpty()
+            // 400 + {"error":"..."} is normal when no card matches (batch or single).
+            if (response.code == 400) return emptyList()
+            if (!response.isSuccessful) throw IOException("YGOPRODeck HTTP ${response.code}")
             if (body.isBlank()) return emptyList()
             return parseCardInfo(body)
         }
