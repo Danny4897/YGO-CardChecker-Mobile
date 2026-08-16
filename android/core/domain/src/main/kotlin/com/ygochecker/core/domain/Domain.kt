@@ -81,9 +81,11 @@ interface SocialRepository {
     suspend fun requestFriend(toUserId: String): AppResult<FriendshipStatus>
     suspend fun acceptFriend(fromUserId: String): AppResult<FriendshipStatus>
     suspend fun listFriends(): AppResult<Pair<List<SocialUser>, List<SocialUser>>>
-    suspend fun publishDeck(deck: Decklist): AppResult<Unit>
+    suspend fun publishDeck(deck: Decklist): AppResult<String>
     suspend fun unpublishDeck(localDeckId: Long): AppResult<Unit>
     suspend fun listPublicDecks(userId: String): AppResult<List<SocialPublicDeckSummary>>
+    /** All public decks from every user (browse / chat without friendship). */
+    suspend fun listAllPublicDecks(limit: Int = 50): AppResult<List<SocialPublicDeckSummary>>
     suspend fun getPublicDeck(deckId: String): AppResult<SocialPublicDeck>
     suspend fun listDeckMessages(deckId: String, lang: String?): AppResult<List<SocialChatMessage>>
     suspend fun postDeckMessage(deckId: String, body: String, lang: String): AppResult<SocialChatMessage>

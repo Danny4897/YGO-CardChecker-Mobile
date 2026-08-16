@@ -136,6 +136,8 @@ class ProfileViewModel @Inject constructor(
         private set
     var viewedDecks by mutableStateOf<List<SocialPublicDeckSummary>>(emptyList())
         private set
+    var discoverDecks by mutableStateOf<List<SocialPublicDeckSummary>>(emptyList())
+        private set
     var publicDeck by mutableStateOf<SocialPublicDeck?>(null)
         private set
     var deckMessages by mutableStateOf<List<SocialChatMessage>>(emptyList())
@@ -182,6 +184,8 @@ class ProfileViewModel @Inject constructor(
                 notice = null
                 refreshFriends()
                 syncMyPublicDecks()
+                refreshMyDecks()
+                refreshDiscover()
             }
             is AppResult.Err -> notice = r.error.errorKey
         }
@@ -261,6 +265,48 @@ class ProfileViewModel @Inject constructor(
                 incoming = r.value.second
             }
             is AppResult.Err -> Unit
+        }
+    }
+
+    fun refreshDiscover() = viewModelScope.launch {
+        when (val r = social.listAllPublicDecks()) {
+            is AppResult.Ok -> discoverDecks = r.value
+            is AppResult.Err -> Unit
+        }
+    }
+
+    fun refreshMyDecks() = viewModelScope.launch {
+        val id = meSocial?.id ?: return@launch
+        when (val d = social.listPublicDecks(id)) {
+            is AppResult.Ok -> viewedDecks = d.value
+            is AppResult.Err -> Unit
+        }
+    }
+
+    /** Publish if needed, then return remote deck id for the chat/thread screen. */
+    fun openMyPublicDeck(local: Decklist, onOpened: (String) -> Unit) = viewModelScope.launch {
+        when (val r = social.publishDeck(local)) {
+            is AppResult.Ok -> {
+                val remoteId = r.value.ifBlank {
+                    meSocial?.let { "${it.id}:${local.id}" }.orEmpty()
+                }
+                refreshMyDecks()
+                refreshDiscover()
+                if (remoteId.isNotBlank()) onOpened(remoteId)
+                else notice = "social.deck_not_found"
+            }
+            is AppResult.Err -> {
+                // Still try deterministic id after a prior successful sync
+                val fallback = meSocial?.let { "${it.id}:${local.id}" }
+                if (fallback != null) {
+                    when (social.getPublicDeck(fallback)) {
+                        is AppResult.Ok -> onOpened(fallback)
+                        is AppResult.Err -> notice = r.error.errorKey
+                    }
+                } else {
+                    notice = r.error.errorKey
+                }
+            }
         }
     }
 
@@ -397,7 +443,10 @@ private fun HomeProfile(
         if (apiUrl.isNotBlank()) vm.bootstrap()
     }
     LaunchedEffect(me?.id) {
-        me?.id?.let { vm.loadUser(it) }
+        me?.id?.let {
+            vm.refreshMyDecks()
+            vm.refreshDiscover()
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -538,12 +587,59 @@ private fun HomeProfile(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            items(vm.viewedDecks.filter { it.ownerId == me?.id }, key = { it.id }) { deck ->
-                PublicDeckRow(deck.name) { onOpenDeck(deck.id) }
-            }
-            if (vm.viewedDecks.none { it.ownerId == me?.id } && publicLocal.isNotEmpty()) {
+            // Prefer remote list (opens chat thread); fall back to local public with publish-on-open.
+            val myRemote = vm.viewedDecks.filter { it.ownerId == me?.id }
+            if (myRemote.isNotEmpty()) {
+                items(myRemote, key = { it.id }) { deck ->
+                    PublicDeckRow(
+                        name = deck.name,
+                        subtitle = stringResource(DesignR.string.profile_deck_chat_hint),
+                    ) { onOpenDeck(deck.id) }
+                }
+            } else if (publicLocal.isNotEmpty()) {
                 items(publicLocal, key = { "local-${it.id}" }) { deck ->
-                    PublicDeckRow(deck.name) { }
+                    PublicDeckRow(
+                        name = deck.name,
+                        subtitle = stringResource(DesignR.string.profile_deck_chat_hint),
+                    ) {
+                        vm.openMyPublicDeck(deck) { onOpenDeck(it) }
+                    }
+                }
+            } else {
+                item {
+                    Text(
+                        "—",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+            item {
+                Text(
+                    stringResource(DesignR.string.profile_discover_decks),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = DuelSpacing.space2),
+                )
+            }
+            items(
+                vm.discoverDecks.filter { it.ownerId != me?.id },
+                key = { "disc-${it.id}" },
+            ) { deck ->
+                PublicDeckRow(
+                    name = deck.name,
+                    subtitle = deck.ownerUsername.ifBlank { deck.ownerId.take(8) },
+                ) { onOpenDeck(deck.id) }
+            }
+            if (vm.discoverDecks.none { it.ownerId != me?.id }) {
+                item {
+                    Text(
+                        stringResource(DesignR.string.profile_discover_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
@@ -608,7 +704,10 @@ private fun UserProfilePane(
                 )
             }
             items(vm.viewedDecks, key = { it.id }) { deck ->
-                PublicDeckRow(deck.name) { onOpenDeck(deck.id) }
+                PublicDeckRow(
+                    name = deck.name,
+                    subtitle = stringResource(DesignR.string.profile_deck_chat_hint),
+                ) { onOpenDeck(deck.id) }
             }
             if (vm.viewedDecks.isEmpty()) {
                 item {
@@ -837,7 +936,7 @@ private fun SocialHero(
 }
 
 @Composable
-private fun PublicDeckRow(name: String, onClick: () -> Unit) {
+private fun PublicDeckRow(name: String, subtitle: String? = null, onClick: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -849,7 +948,17 @@ private fun PublicDeckRow(name: String, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(Icons.Default.Public, null, Modifier.size(18.dp))
-            Text(name, style = MaterialTheme.typography.bodyLarge)
+            Column(Modifier.weight(1f)) {
+                Text(name, style = MaterialTheme.typography.bodyLarge)
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Icon(Icons.Default.Message, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
         }
     }
 }

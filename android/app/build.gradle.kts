@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.3.0"
+        versionCode = 13
+        versionName = "0.3.1"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Profilo social: amici per nickname/codice, mazzi pubblici, chat deck e DM\\n• Backend SQLite locale + tunnel Cloudflare per i tester",
+                "• I tuoi mazzi pubblici aprono il thread (vista + chat)\\n• Feed mazzi pubblici di tutti: chiunque può entrare e chattare",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.

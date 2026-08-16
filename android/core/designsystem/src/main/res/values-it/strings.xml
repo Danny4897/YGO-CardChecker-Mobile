@@ -323,6 +323,9 @@
     <string name="profile_deck_by">Di %1$s</string>
     <string name="profile_deck_cards">Carte</string>
     <string name="profile_deck_chat">Chat globale</string>
+    <string name="profile_deck_chat_hint">Apri · guarda · chatta</string>
+    <string name="profile_discover_decks">Mazzi pubblici di tutti</string>
+    <string name="profile_discover_empty">Nessun altro mazzo pubblico — chiedi agli amici di pubblicarne uno.</string>
     <string name="profile_chat_all_langs">Tutte le lingue</string>
     <string name="profile_chat_hint">Scrivi qualcosa su questo mazzo</string>
     <string name="settings_social">Social API</string>

@@ -143,6 +143,7 @@ data class SocialUser(
 data class SocialPublicDeckSummary(
     val id: String,
     val ownerId: String,
+    val ownerUsername: String = "",
     val localDeckId: Long,
     val name: String,
     val coverCardIds: List<Int> = emptyList(),

@@ -323,6 +323,9 @@
     <string name="profile_deck_by">By %1$s</string>
     <string name="profile_deck_cards">Cards</string>
     <string name="profile_deck_chat">World chat</string>
+    <string name="profile_deck_chat_hint">Open · view · chat</string>
+    <string name="profile_discover_decks">Public decks from everyone</string>
+    <string name="profile_discover_empty">No other public decks yet — ask friends to publish one.</string>
     <string name="profile_chat_all_langs">All languages</string>
     <string name="profile_chat_hint">Say something about this deck</string>
     <string name="settings_social">Social API</string>

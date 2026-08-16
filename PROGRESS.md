@@ -9,6 +9,7 @@ Profile as friend landing; public decks + world chat + DMs.
 
 ## Done
 
+- 2026-08-16: **Verifier** — Android `gradlew test` PASS (JBR 21); :app / :core:* / :data:* OK; no failures
 - 2026-08-16: **v0.2.9** — feed aggiornamenti su jsDelivr (fix cache raw GitHub ~5 min)
 - 2026-08-16: **v0.2.8** — update check: cache-bust feed + manual ripropone skip; bump per chi aveva “Più tardi” su 0.2.7
 - 2026-08-16: **v0.2.7** — shell: drawer non copre navbar; swipe tra tab primari

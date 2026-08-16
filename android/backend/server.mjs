@@ -288,12 +288,17 @@ async function handler(req, res) {
       if (!row) return json(res, 404, { errorKey: 'social.user_not_found' });
       const decks = db
         .prepare(
-          'SELECT id, owner_id, local_deck_id, name, cover_card_ids, updated_at FROM public_decks WHERE owner_id = ? ORDER BY updated_at DESC',
+          `SELECT d.id, d.owner_id, d.local_deck_id, d.name, d.cover_card_ids, d.updated_at, u.username AS owner_username
+           FROM public_decks d
+           LEFT JOIN users u ON u.id = d.owner_id
+           WHERE d.owner_id = ?
+           ORDER BY d.updated_at DESC`,
         )
         .all(row.id)
         .map((d) => ({
           id: d.id,
           ownerId: d.owner_id,
+          ownerUsername: d.owner_username || row.username,
           localDeckId: d.local_deck_id,
           name: d.name,
           coverCardIds: JSON.parse(d.cover_card_ids || '[]'),
@@ -372,6 +377,29 @@ async function handler(req, res) {
         })
         .filter(Boolean);
       return json(res, 200, { friends, incoming });
+    }
+
+    if (req.method === 'GET' && pathname === '/v1/decks') {
+      const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || 50)));
+      const decks = db
+        .prepare(
+          `SELECT d.id, d.owner_id, d.local_deck_id, d.name, d.cover_card_ids, d.updated_at, u.username AS owner_username
+           FROM public_decks d
+           JOIN users u ON u.id = d.owner_id
+           ORDER BY d.updated_at DESC
+           LIMIT ?`,
+        )
+        .all(limit)
+        .map((d) => ({
+          id: d.id,
+          ownerId: d.owner_id,
+          ownerUsername: d.owner_username || '?',
+          localDeckId: d.local_deck_id,
+          name: d.name,
+          coverCardIds: JSON.parse(d.cover_card_ids || '[]'),
+          updatedAt: d.updated_at,
+        }));
+      return json(res, 200, { decks });
     }
 
     const putDeck = /^\/v1\/me\/decks\/(\d+)$/.exec(pathname);

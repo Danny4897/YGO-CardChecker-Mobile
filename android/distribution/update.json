@@ -1,6 +1,6 @@
 {
-  "versionCode": 12,
-  "versionName": "0.3.0",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.3.0/app-release.apk",
-  "changelog": "Profilo social: amici per nickname/codice, mazzi pubblici, chat deck e DM · backend SQLite + tunnel · Impostazioni → URL Social API"
+  "versionCode": 13,
+  "versionName": "0.3.1",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.3.1/app-release.apk",
+  "changelog": "Mazzi pubblici: apri i tuoi thread (vista+chat) · feed globale — chiunque può entrare e chattare"
 }

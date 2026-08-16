@@ -128,7 +128,7 @@ class HttpSocialRepository @Inject constructor(
             root.getJSONArray("friends").toUserList() to root.getJSONArray("incoming").toUserList()
         }
 
-    override suspend fun publishDeck(deck: Decklist): AppResult<Unit> {
+    override suspend fun publishDeck(deck: Decklist): AppResult<String> {
         val cards = JSONArray()
         deck.cards.forEach { dc ->
             cards.put(
@@ -145,7 +145,14 @@ class HttpSocialRepository @Inject constructor(
             .put("name", deck.name)
             .put("coverCardIds", covers)
             .put("cards", cards)
-        return request("PUT", "/v1/me/decks/${deck.id}", body).map { }
+        return when (val r = request("PUT", "/v1/me/decks/${deck.id}", body)) {
+            is AppResult.Err -> r
+            is AppResult.Ok -> {
+                val id = r.value.optString("id")
+                if (id.isBlank()) AppResult.Err(AppError("social.deck_not_found"))
+                else AppResult.Ok(id)
+            }
+        }
     }
 
     override suspend fun unpublishDeck(localDeckId: Long): AppResult<Unit> =
@@ -153,22 +160,12 @@ class HttpSocialRepository @Inject constructor(
 
     override suspend fun listPublicDecks(userId: String): AppResult<List<SocialPublicDeckSummary>> =
         getJson("/v1/users/${encode(userId)}/decks") { root ->
-            val arr = root.getJSONArray("decks")
-            buildList {
-                for (i in 0 until arr.length()) {
-                    val o = arr.getJSONObject(i)
-                    add(
-                        SocialPublicDeckSummary(
-                            id = o.getString("id"),
-                            ownerId = o.getString("ownerId"),
-                            localDeckId = o.optLong("localDeckId"),
-                            name = o.optString("name"),
-                            coverCardIds = o.optJSONArray("coverCardIds").toIntList(),
-                            updatedAt = o.optLong("updatedAt"),
-                        ),
-                    )
-                }
-            }
+            root.getJSONArray("decks").toDeckSummaries()
+        }
+
+    override suspend fun listAllPublicDecks(limit: Int): AppResult<List<SocialPublicDeckSummary>> =
+        getJson("/v1/decks?limit=$limit") { root ->
+            root.getJSONArray("decks").toDeckSummaries()
         }
 
     override suspend fun getPublicDeck(deckId: String): AppResult<SocialPublicDeck> =
@@ -332,6 +329,23 @@ class HttpSocialRepository @Inject constructor(
         "pending_out" -> FriendshipStatus.PENDING_OUT
         "pending_in" -> FriendshipStatus.PENDING_IN
         else -> FriendshipStatus.NONE
+    }
+
+    private fun JSONArray.toDeckSummaries(): List<SocialPublicDeckSummary> = buildList {
+        for (i in 0 until length()) {
+            val o = getJSONObject(i)
+            add(
+                SocialPublicDeckSummary(
+                    id = o.getString("id"),
+                    ownerId = o.getString("ownerId"),
+                    ownerUsername = o.optString("ownerUsername"),
+                    localDeckId = o.optLong("localDeckId"),
+                    name = o.optString("name"),
+                    coverCardIds = o.optJSONArray("coverCardIds").toIntList(),
+                    updatedAt = o.optLong("updatedAt"),
+                ),
+            )
+        }
     }
 
     private fun JSONArray.toUserList(): List<SocialUser> = buildList {
