@@ -12,29 +12,35 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "0.2.9"
+        versionCode = 17
+        versionName = "0.3.5"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Feed aggiornamenti su jsDelivr (niente più cache GitHub raw di 5 minuti)\\n• Check update più affidabile",
+                "• Feed aggiornamenti su jsDelivr @latest (purge affidabile)\\n• Niente più blocco su @main stale",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
         buildConfigField("String", "DISCORD_CLIENT_ID", "\"${propertyOrEmpty("DISCORD_CLIENT_ID")}\"")
         buildConfigField("String", "DISCORD_CLIENT_SECRET", "\"${propertyOrEmpty("DISCORD_CLIENT_SECRET")}\"")
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${propertyOrEmpty("GOOGLE_CLIENT_ID")}\"")
-        // FOSS in-app updates — jsDelivr (GitHub raw CDN can stay stale for ~5 minutes).
+        // FOSS in-app updates — prefer @latest (semver tags purge cleanly). @main can lag ~12h.
         buildConfigField(
             "String",
             "UPDATE_FEED_URL",
             "\"${propertyOrDefault(
                 "UPDATE_FEED_URL",
-                "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json",
+                "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@latest/android/distribution/update.json",
             )}\"",
+        )
+        // Social micro-API (SQLite backend). Empty → social UI shows offline hint.
+        buildConfigField(
+            "String",
+            "SOCIAL_API_URL",
+            "\"${propertyOrDefault("SOCIAL_API_URL", "")}\"",
         )
     }
     compileOptions {

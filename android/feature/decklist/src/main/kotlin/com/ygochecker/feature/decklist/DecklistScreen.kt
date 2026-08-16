@@ -127,6 +127,7 @@ import com.ygochecker.core.domain.RenameDecklist
 import com.ygochecker.core.domain.SetCardQuantity
 import com.ygochecker.core.domain.SetDeckCovers
 import com.ygochecker.core.domain.SetDeckPublic
+import com.ygochecker.core.domain.SocialRepository
 import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.core.model.Card
 import com.ygochecker.core.model.DeckCard
@@ -143,6 +144,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -160,6 +162,7 @@ import javax.inject.Inject
     private val setQuantity: SetCardQuantity,
     private val setCovers: SetDeckCovers,
     private val setPublic: SetDeckPublic,
+    private val social: SocialRepository,
     private val getScript: GetEffectScript,
     private val getLocalized: GetLocalizedCard,
     private val getRelated: GetRelatedCards,
@@ -210,7 +213,14 @@ import javax.inject.Inject
     fun select(id: Long?) { selectedId.value = id }
     fun create() = viewModelScope.launch { selectedId.value = createDeck.invoke("New deck") }
     fun delete(id: Long) = viewModelScope.launch { deleteDeck.invoke(id); selectedId.value = null }
-    fun setVisibility(id: Long, isPublic: Boolean) = viewModelScope.launch { setPublic.invoke(id, isPublic) }
+    fun setVisibility(id: Long, isPublic: Boolean) = viewModelScope.launch {
+        setPublic.invoke(id, isPublic)
+        val deck = getDeck.invoke(id).first()
+        if (deck != null) {
+            if (isPublic) social.publishDeck(deck)
+            else social.unpublishDeck(id)
+        }
+    }
     fun clearCompleteNotice() { completeNotice = null }
     fun completeDeck(
         targetMain: Int,

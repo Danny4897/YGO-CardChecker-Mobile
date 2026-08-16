@@ -69,6 +69,30 @@ interface ProfileRepository {
     suspend fun removeReplay(id: Long)
 }
 
+/** Remote social API (SQLite micro-backend). Empty base URL → offline / disabled. */
+interface SocialRepository {
+    fun observeApiUrl(): Flow<String>
+    suspend fun setApiUrl(url: String)
+    suspend fun ensureSession(username: String, avatarCardId: Int?): AppResult<SocialUser>
+    suspend fun refreshMe(): AppResult<SocialUser>
+    suspend fun updateMe(username: String, avatarCardId: Int?): AppResult<SocialUser>
+    suspend fun searchUsers(query: String): AppResult<List<SocialUser>>
+    suspend fun getUser(idOrCode: String): AppResult<SocialUser>
+    suspend fun requestFriend(toUserId: String): AppResult<FriendshipStatus>
+    suspend fun acceptFriend(fromUserId: String): AppResult<FriendshipStatus>
+    suspend fun listFriends(): AppResult<Pair<List<SocialUser>, List<SocialUser>>>
+    suspend fun publishDeck(deck: Decklist): AppResult<String>
+    suspend fun unpublishDeck(localDeckId: Long): AppResult<Unit>
+    suspend fun listPublicDecks(userId: String): AppResult<List<SocialPublicDeckSummary>>
+    /** All public decks from every user (browse / chat without friendship). */
+    suspend fun listAllPublicDecks(limit: Int = 50): AppResult<List<SocialPublicDeckSummary>>
+    suspend fun getPublicDeck(deckId: String): AppResult<SocialPublicDeck>
+    suspend fun listDeckMessages(deckId: String, lang: String?): AppResult<List<SocialChatMessage>>
+    suspend fun postDeckMessage(deckId: String, body: String, lang: String): AppResult<SocialChatMessage>
+    suspend fun listDm(peerUserId: String): AppResult<List<SocialDmMessage>>
+    suspend fun postDm(peerUserId: String, body: String): AppResult<SocialDmMessage>
+}
+
 interface PreferenceRepository {
     val format: Flow<GameFormat>
     val language: Flow<AppLanguage>

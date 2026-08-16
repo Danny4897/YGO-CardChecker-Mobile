@@ -45,6 +45,7 @@ import com.ygochecker.core.designsystem.SettingsGroup
 import com.ygochecker.core.domain.FormatPreference
 import com.ygochecker.core.domain.LanguagePreference
 import com.ygochecker.core.domain.ObserveOfflinePack
+import com.ygochecker.core.domain.SocialRepository
 import com.ygochecker.core.domain.SyncAllKnowledge
 import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.core.model.CatalogSyncProgress
@@ -58,6 +59,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -65,9 +70,11 @@ class SettingsViewModel @Inject constructor(
     private val languages: LanguagePreference,
     private val observePack: ObserveOfflinePack,
     private val syncAll: SyncAllKnowledge,
+    private val social: SocialRepository,
 ) : ViewModel() {
     val format = formats.values.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GameFormat.TCG)
     val language = languages.values.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppLanguage.ENGLISH)
+    val socialApiUrl = social.observeApiUrl().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
     val packStatus = observePack.status().stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -78,6 +85,7 @@ class SettingsViewModel @Inject constructor(
     val notice = _notice.asStateFlow()
 
     fun setFormat(value: GameFormat) = viewModelScope.launch { formats.set(value) }
+    fun setSocialApiUrl(url: String) = viewModelScope.launch { social.setApiUrl(url) }
     fun setLanguage(value: AppLanguage) = viewModelScope.launch { languages.set(value) }
     fun clearNotice() { _notice.value = null }
     fun clearStuckProgress() = observePack.clearProgress()
@@ -166,6 +174,32 @@ fun SettingsRoute(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+
+        val socialUrl by vm.socialApiUrl.collectAsStateWithLifecycle()
+        var socialDraft by remember(socialUrl) { mutableStateOf(socialUrl) }
+        SettingsGroup(
+            title = stringResource(DesignR.string.settings_social),
+            modifier = Modifier.padding(top = DuelSpacing.space5),
+        ) {
+            Text(
+                stringResource(DesignR.string.settings_social_url_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = socialDraft,
+                onValueChange = { socialDraft = it },
+                label = { Text(stringResource(DesignR.string.settings_social_url)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Button(
+                onClick = { vm.setSocialApiUrl(socialDraft) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(DesignR.string.settings_social_save))
+            }
         }
 
         SettingsGroup(

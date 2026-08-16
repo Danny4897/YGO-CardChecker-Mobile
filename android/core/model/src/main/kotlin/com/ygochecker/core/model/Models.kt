@@ -125,6 +125,66 @@ data class FriendEntry(
     val note: String = "",
 )
 
+enum class FriendshipStatus {
+    NONE,
+    PENDING_OUT,
+    PENDING_IN,
+    FRIENDS,
+}
+
+data class SocialUser(
+    val id: String,
+    val username: String,
+    val friendCode: String,
+    val avatarCardId: Int? = null,
+    val friendship: FriendshipStatus = FriendshipStatus.NONE,
+)
+
+data class SocialPublicDeckSummary(
+    val id: String,
+    val ownerId: String,
+    val ownerUsername: String = "",
+    val localDeckId: Long,
+    val name: String,
+    val coverCardIds: List<Int> = emptyList(),
+    val updatedAt: Long = 0L,
+)
+
+data class SocialDeckCard(
+    val cardId: Int,
+    val quantity: Int,
+    val section: String,
+    val name: String = "",
+)
+
+data class SocialPublicDeck(
+    val id: String,
+    val ownerId: String,
+    val ownerUsername: String,
+    val localDeckId: Long,
+    val name: String,
+    val coverCardIds: List<Int> = emptyList(),
+    val cards: List<SocialDeckCard> = emptyList(),
+    val updatedAt: Long = 0L,
+)
+
+data class SocialChatMessage(
+    val id: Long,
+    val userId: String,
+    val username: String,
+    val body: String,
+    val lang: String = "en",
+    val createdAt: Long,
+)
+
+data class SocialDmMessage(
+    val id: Long,
+    val fromUserId: String,
+    val toUserId: String,
+    val body: String,
+    val createdAt: Long,
+)
+
 data class CardCollection(
     val id: Long,
     val name: String,

@@ -4,11 +4,14 @@
 
 - `refactor/android-native`: **Flow redesign** — attuale motore nascosto dietro Coming Soon
 - **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
-- **Cloud sync** profilo/amici/mazzi/replay keyed by Discord/Google subject (OAuth alone ≠ sync)
-- OAuth Discord/Google: serve `DISCORD_CLIENT_ID` + `DISCORD_CLIENT_SECRET` (+ `GOOGLE_CLIENT_ID`) in `local.properties` per consent window + token exchange
+- **Cloud sync** profilo/amici/mazzi/replay keyed by Discord/Google subject (android/backend/README.md
+Profile as friend landing; public decks + world chat + DMs.
 
 ## Done
 
+- 2026-08-16: **v0.3.3** � fix click mazzi pubblici ? thread
+- 2026-08-16: **v0.3.2** � fix ricerca utenti (sessione + feedback)
+- 2026-08-16: **Verifier** — Android `gradlew test` PASS (JBR 21); :app / :core:* / :data:* OK; no failures
 - 2026-08-16: **v0.2.9** — feed aggiornamenti su jsDelivr (fix cache raw GitHub ~5 min)
 - 2026-08-16: **v0.2.8** — update check: cache-bust feed + manual ripropone skip; bump per chi aveva “Più tardi” su 0.2.7
 - 2026-08-16: **v0.2.7** — shell: drawer non copre navbar; swipe tra tab primari

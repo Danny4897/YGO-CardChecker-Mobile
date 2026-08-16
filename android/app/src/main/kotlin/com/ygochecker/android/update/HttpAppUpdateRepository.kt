@@ -8,6 +8,9 @@ import com.ygochecker.core.domain.AppUpdateRepository
 import com.ygochecker.android.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -31,10 +34,20 @@ class HttpAppUpdateRepository @Inject constructor(
     override val feedUrl: String = BuildConfig.UPDATE_FEED_URL.trim()
 
     override suspend fun fetchManifest(): AppResult<AppUpdateManifest> = withContext(Dispatchers.IO) {
-        val base = feedUrl
-        if (base.isBlank()) return@withContext AppResult.Err(AppError("update.disabled"))
-        try {
-            // Bust GitHub raw CDN (max-age=300) so checks after a release see fresh JSON.
+        val urls = feedCandidateUrls(feedUrl)
+        if (urls.isEmpty()) return@withContext AppResult.Err(AppError("update.disabled"))
+        val manifests = coroutineScope {
+            urls.map { url ->
+                async { fetchOne(url) }
+            }.awaitAll()
+        }.filterNotNull()
+        val best = manifests.maxByOrNull { it.versionCode }
+            ?: return@withContext AppResult.Err(AppError("update.network"))
+        AppResult.Ok(best)
+    }
+
+    private fun fetchOne(base: String): AppUpdateManifest? {
+        return try {
             val separator = if (base.contains('?')) '&' else '?'
             val url = "$base${separator}_=${System.currentTimeMillis()}"
             val request = Request.Builder()
@@ -45,18 +58,14 @@ class HttpAppUpdateRepository @Inject constructor(
                 .header("Pragma", "no-cache")
                 .build()
             http.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    return@withContext AppResult.Err(AppError("update.network"))
-                }
+                if (!response.isSuccessful) return null
                 val body = response.body?.string().orEmpty()
-                val parsed = parseManifest(body)
-                    ?: return@withContext AppResult.Err(AppError("update.invalid"))
-                AppResult.Ok(parsed)
+                parseManifest(body)
             }
         } catch (_: IOException) {
-            AppResult.Err(AppError("update.network"))
+            null
         } catch (_: Exception) {
-            AppResult.Err(AppError("update.invalid"))
+            null
         }
     }
 
@@ -75,6 +84,27 @@ class HttpAppUpdateRepository @Inject constructor(
     }
 
     companion object {
+        private const val RAW_FEED =
+            "https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/distribution/update.json"
+        /** Semver @latest — purgeable; use this as default BuildConfig feed. */
+        private const val JSDELIVR_LATEST_FEED =
+            "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@latest/android/distribution/update.json"
+        /** Legacy URL baked into 0.2.9–0.3.3; keep probing so max(versionCode) still works after CDN catches up. */
+        private const val JSDELIVR_MAIN_FEED =
+            "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json"
+        private const val GITHUB_RELEASE_FEED =
+            "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/latest/download/update.json"
+
+        /** Primary + mirrors; caller picks highest versionCode (jsDelivr @main can lag for hours). */
+        fun feedCandidateUrls(primary: String): List<String> =
+            linkedSetOf(
+                primary.trim(),
+                JSDELIVR_LATEST_FEED,
+                RAW_FEED,
+                GITHUB_RELEASE_FEED,
+                JSDELIVR_MAIN_FEED,
+            ).filter { it.isNotBlank() }
+
         fun parseManifest(json: String): AppUpdateManifest? {
             return try {
                 val o = JSONObject(json)

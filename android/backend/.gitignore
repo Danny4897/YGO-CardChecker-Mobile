@@ -1,0 +1,5 @@
+data/*.db
+data/*.db-*
+data/tunnel-url.txt
+data/bin/
+node_modules/
