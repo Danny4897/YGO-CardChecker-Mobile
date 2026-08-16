@@ -24,11 +24,14 @@ class HttpAppUpdateRepositoryParseTest {
     }
 
     @Test
-    fun feedCandidatesAlwaysIncludeRawGithub() {
+    fun feedCandidatesIncludeLatestRawAndLegacyMain() {
         val urls = HttpAppUpdateRepository.feedCandidateUrls(
             "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json",
         )
         assertEquals(true, urls.any { it.contains("raw.githubusercontent.com") })
-        assertEquals(true, urls.size >= 2)
+        assertEquals(true, urls.any { it.contains("@latest") })
+        assertEquals(true, urls.any { it.contains("@main") })
+        assertEquals(true, urls.any { it.contains("releases/latest/download/update.json") })
+        assertEquals(true, urls.size >= 4)
     }
 }

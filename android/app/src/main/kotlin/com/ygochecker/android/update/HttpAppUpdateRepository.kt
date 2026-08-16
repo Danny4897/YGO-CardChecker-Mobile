@@ -86,15 +86,23 @@ class HttpAppUpdateRepository @Inject constructor(
     companion object {
         private const val RAW_FEED =
             "https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/distribution/update.json"
-        private const val JSDELIVR_FEED =
+        /** Semver @latest — purgeable; use this as default BuildConfig feed. */
+        private const val JSDELIVR_LATEST_FEED =
+            "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@latest/android/distribution/update.json"
+        /** Legacy URL baked into 0.2.9–0.3.3; keep probing so max(versionCode) still works after CDN catches up. */
+        private const val JSDELIVR_MAIN_FEED =
             "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json"
+        private const val GITHUB_RELEASE_FEED =
+            "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/latest/download/update.json"
 
-        /** Primary + mirrors; caller picks highest versionCode (jsDelivr @main can lag). */
+        /** Primary + mirrors; caller picks highest versionCode (jsDelivr @main can lag for hours). */
         fun feedCandidateUrls(primary: String): List<String> =
             linkedSetOf(
                 primary.trim(),
+                JSDELIVR_LATEST_FEED,
                 RAW_FEED,
-                JSDELIVR_FEED,
+                GITHUB_RELEASE_FEED,
+                JSDELIVR_MAIN_FEED,
             ).filter { it.isNotBlank() }
 
         fun parseManifest(json: String): AppUpdateManifest? {

@@ -5,10 +5,12 @@ Repo: [Danny4897/YGO-CardChecker-Mobile](https://github.com/Danny4897/YGO-CardCh
 The app checks this feed on launch (and from Settings → Updates):
 
 ```text
-https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/distribution/update.json
+https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@latest/android/distribution/update.json
 ```
 
-(The client also probes jsDelivr and keeps the **highest** `versionCode`. Prefer raw GitHub as primary — jsDelivr `@main` can stay stale for hours even after purge.)
+Always use **`@latest`** (semver GitHub Releases), never `@main` — jsDelivr branch refs can stay stale for up to ~12 hours and purge is unreliable.
+
+The client also probes raw GitHub, `releases/latest/download/update.json`, and legacy `@main`, then keeps the **highest** `versionCode`.
 
 Override in `android/local.properties` with `UPDATE_FEED_URL=` if needed.
 
@@ -18,8 +20,8 @@ Override in `android/local.properties` with `UPDATE_FEED_URL=` if needed.
    - `versionCode` (+1)
    - `versionName` (e.g. `0.2.2`)
 2. Build the **release** APK (`assembleRelease`) — not debug. Debug APKs are `debuggable=true` and Play Protect flags them every time.
-3. Create a **GitHub Release** tag `v0.2.2` and attach `app-release.apk`.
-4. Update `android/distribution/update.json` on `main`:
+3. Create a **GitHub Release** tag `v0.2.2` and attach **both** `app-release.apk` and `android/distribution/update.json` (same JSON as below).
+4. Update `android/distribution/update.json` on `main` (and ensure the release tag includes that file so `@latest` serves it):
 
 ```json
 {
@@ -30,7 +32,8 @@ Override in `android/local.properties` with `UPDATE_FEED_URL=` if needed.
 }
 ```
 
-5. Push `main` so the feed URL above serves the new JSON (jsDelivr usually refreshes within seconds; purge with `https://purge.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json` if needed).
+5. Push `main`, then purge **`@latest`** (not `@main`):
+   `https://purge.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@latest/android/distribution/update.json`
 
 `versionCode` must be **greater** than what users already have. Keep the **same signing key** across updates (release currently reuses the Android debug keystore so upgrades from early GitHub builds still work).
 

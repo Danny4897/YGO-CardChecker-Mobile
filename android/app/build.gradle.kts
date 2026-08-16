@@ -12,28 +12,28 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.3.4"
+        versionCode = 17
+        versionName = "0.3.5"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Fix popup aggiornamento (feed GitHub raw + fallback multi-CDN)\\n• jsDelivr @main era bloccato su 0.3.1",
+                "• Feed aggiornamenti su jsDelivr @latest (purge affidabile)\\n• Niente più blocco su @main stale",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
         buildConfigField("String", "DISCORD_CLIENT_ID", "\"${propertyOrEmpty("DISCORD_CLIENT_ID")}\"")
         buildConfigField("String", "DISCORD_CLIENT_SECRET", "\"${propertyOrEmpty("DISCORD_CLIENT_SECRET")}\"")
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${propertyOrEmpty("GOOGLE_CLIENT_ID")}\"")
-        // FOSS in-app updates — jsDelivr (GitHub raw CDN can stay stale for ~5 minutes).
+        // FOSS in-app updates — prefer @latest (semver tags purge cleanly). @main can lag ~12h.
         buildConfigField(
             "String",
             "UPDATE_FEED_URL",
             "\"${propertyOrDefault(
                 "UPDATE_FEED_URL",
-                "https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/distribution/update.json",
+                "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@latest/android/distribution/update.json",
             )}\"",
         )
         // Social micro-API (SQLite backend). Empty → social UI shows offline hint.
