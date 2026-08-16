@@ -312,6 +312,9 @@
     <string name="profile_search_action">Search</string>
     <string name="profile_open_profile">Open profile</string>
     <string name="profile_search_results">Results</string>
+    <string name="profile_searching">Searching…</string>
+    <string name="profile_search_empty">No users found. They must use the same Social API URL and have set a username.</string>
+    <string name="profile_search_short">Type at least 2 characters.</string>
     <string name="profile_friend_requests">Friend requests</string>
     <string name="profile_accept_friend">Accept</string>
     <string name="profile_already_friends">Friends</string>

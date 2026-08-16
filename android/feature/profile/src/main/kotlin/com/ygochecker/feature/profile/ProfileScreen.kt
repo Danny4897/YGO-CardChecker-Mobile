@@ -57,6 +57,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -131,6 +135,9 @@ class ProfileViewModel @Inject constructor(
     var incoming by mutableStateOf<List<SocialUser>>(emptyList())
         private set
     var searchResults by mutableStateOf<List<SocialUser>>(emptyList())
+        private set
+    /** null = idle/success with hits; "loading" | "empty" | errorKey */
+    var searchStatus by mutableStateOf<String?>(null)
         private set
     var viewedUser by mutableStateOf<SocialUser?>(null)
         private set
@@ -212,12 +219,34 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun searchPeople(query: String) = viewModelScope.launch {
-        when (val r = social.searchUsers(query)) {
+        val q = query.trim()
+        if (q.length < 2) {
+            searchResults = emptyList()
+            searchStatus = "social.search_short"
+            return@launch
+        }
+        searchStatus = "loading"
+        val local = user.value
+        when (val session = social.ensureSession(local.username.ifBlank { q }, local.avatarCardId)) {
+            is AppResult.Ok -> meSocial = session.value
+            is AppResult.Err -> {
+                searchResults = emptyList()
+                searchStatus = session.error.errorKey
+                notice = session.error.errorKey
+                return@launch
+            }
+        }
+        when (val r = social.searchUsers(q)) {
             is AppResult.Ok -> {
                 searchResults = r.value
+                searchStatus = if (r.value.isEmpty()) "empty" else null
                 notice = null
             }
-            is AppResult.Err -> notice = r.error.errorKey
+            is AppResult.Err -> {
+                searchResults = emptyList()
+                searchStatus = r.error.errorKey
+                notice = r.error.errorKey
+            }
         }
     }
 
@@ -448,6 +477,13 @@ private fun HomeProfile(
             vm.refreshDiscover()
         }
     }
+    LaunchedEffect(search, apiUrl) {
+        if (apiUrl.isBlank()) return@LaunchedEffect
+        val q = search.trim()
+        if (q.length < 2) return@LaunchedEffect
+        kotlinx.coroutines.delay(400)
+        if (search.trim() == q) vm.searchPeople(q)
+    }
 
     Column(Modifier.fillMaxSize()) {
         ThemedScreenHeader(
@@ -498,14 +534,15 @@ private fun HomeProfile(
                     label = { Text(stringResource(DesignR.string.profile_find_people)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(
+                        onSearch = { vm.searchPeople(search) },
+                    ),
                     trailingIcon = {
-                        IconButton(onClick = {
-                            vm.searchPeople(search)
-                            val q = search.trim()
-                            if (q.startsWith("YG-", ignoreCase = true) || q.length >= 8) {
-                                // Prefer opening profile for codes / ids
-                            }
-                        }) {
+                        IconButton(
+                            onClick = { vm.searchPeople(search) },
+                            enabled = apiUrl.isNotBlank(),
+                        ) {
                             Icon(Icons.Default.Search, stringResource(DesignR.string.profile_find_people))
                         }
                     },
@@ -523,6 +560,34 @@ private fun HomeProfile(
                     ) {
                         Text(stringResource(DesignR.string.profile_open_profile))
                     }
+                }
+                when (val status = vm.searchStatus) {
+                    "loading" -> Row(
+                        Modifier.fillMaxWidth().padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Text(stringResource(DesignR.string.profile_searching), style = MaterialTheme.typography.bodySmall)
+                    }
+                    "empty" -> Text(
+                        stringResource(DesignR.string.profile_search_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    )
+                    "social.search_short" -> Text(
+                        stringResource(DesignR.string.profile_search_short),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    null -> Unit
+                    else -> Text(
+                        errorMessage(status),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    )
                 }
             }
             if (vm.searchResults.isNotEmpty()) {

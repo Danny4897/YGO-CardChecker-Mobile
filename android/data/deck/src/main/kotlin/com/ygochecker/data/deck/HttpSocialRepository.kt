@@ -105,10 +105,13 @@ class HttpSocialRepository @Inject constructor(
         return request("PATCH", "/v1/me", body).mapUser()
     }
 
-    override suspend fun searchUsers(query: String): AppResult<List<SocialUser>> =
-        getJson("/v1/users/search?q=${encode(query)}") { root ->
-            root.getJSONArray("users").toUserList()
+    override suspend fun searchUsers(query: String): AppResult<List<SocialUser>> {
+        val q = query.trim()
+        val path = "/v1/users/search?q=" + java.net.URLEncoder.encode(q, "UTF-8")
+        return getJson(path) { root ->
+            root.optJSONArray("users")?.toUserList().orEmpty()
         }
+    }
 
     override suspend fun getUser(idOrCode: String): AppResult<SocialUser> =
         getJson("/v1/users/${encode(idOrCode)}") { parseUser(it.getJSONObject("user")) }

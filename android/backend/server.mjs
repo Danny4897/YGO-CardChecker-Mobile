@@ -259,15 +259,23 @@ async function handler(req, res) {
         .trim()
         .slice(0, 40);
       if (q.length < 2) return json(res, 200, { users: [] });
+      // Escape LIKE wildcards in user input; match username or friend code (case-insensitive).
+      const safe = q.replace(/[%_]/g, '');
+      if (safe.length < 2) return json(res, 200, { users: [] });
+      const needle = `%${safe}%`;
+      const codeNeedle = `%${safe.toUpperCase()}%`;
       const rows = db
         .prepare(
           `SELECT * FROM users
            WHERE id != ?
-             AND (username LIKE ? COLLATE NOCASE OR friend_code LIKE ? COLLATE NOCASE)
+             AND (
+               lower(username) LIKE lower(?)
+               OR upper(friend_code) LIKE ?
+             )
            ORDER BY username COLLATE NOCASE
            LIMIT 30`,
         )
-        .all(me.id, `%${q}%`, `%${q}%`);
+        .all(me.id, needle, codeNeedle);
       return json(res, 200, {
         users: rows.map((r) => publicUser(r, friendshipBetween(me.id, r.id))),
       });
