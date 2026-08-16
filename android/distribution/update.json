@@ -1,6 +1,6 @@
 {
-  "versionCode": 17,
-  "versionName": "0.3.5",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.3.5/app-release.apk",
-  "changelog": "Feed aggiornamenti su jsDelivr @latest. Riapri l'app per il popup in-app."
+  "versionCode": 18,
+  "versionName": "0.3.6",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.3.6/app-release.apk",
+  "changelog": "Rebuild minimo: feed @latest ripulito. Aggiornamento in-app come sempre."
 }
