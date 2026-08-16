@@ -12,6 +12,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module @InstallIn(SingletonComponent::class)
@@ -19,6 +20,7 @@ abstract class DependencyModule {
     @Binds abstract fun cardRepository(value: RoomCardRepository): CardRepository
     @Binds abstract fun deckRepository(value: RoomDeckRepository): DeckRepository
     @Binds abstract fun profileRepository(value: RoomProfileRepository): ProfileRepository
+    @Binds abstract fun socialRepository(value: HttpSocialRepository): SocialRepository
     @Binds abstract fun preferenceRepository(value: DataStorePreferenceRepository): PreferenceRepository
     @Binds abstract fun offlinePack(value: RoomOfflinePackRepository): OfflinePackRepository
     @Binds abstract fun searchCards(value: DefaultSearchCards): SearchCards
@@ -61,6 +63,8 @@ abstract class DependencyModule {
 
     companion object {
         @Provides @Singleton fun okHttpClient(): OkHttpClient = YgoProDeckClient.defaultHttpClient()
+        @Provides @Singleton @Named("socialApiBaseUrl")
+        fun socialApiBaseUrl(): String = BuildConfig.SOCIAL_API_URL.trim()
         @Provides @Singleton fun cardDatabase(@ApplicationContext context: Context): CardDatabase =
             Room.databaseBuilder(context, CardDatabase::class.java, "cards.db")
                 .fallbackToDestructiveMigration()

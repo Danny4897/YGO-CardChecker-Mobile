@@ -27,6 +27,16 @@ fun errorStringResource(errorKey: String): Int = when (errorKey) {
     "update.network" -> R.string.error_update_network
     "update.invalid" -> R.string.error_update_invalid
     "update.disabled" -> R.string.update_disabled
+    "social.not_configured" -> R.string.error_social_not_configured
+    "social.unauthorized" -> R.string.error_social_unauthorized
+    "social.network" -> R.string.error_social_network
+    "social.user_not_found" -> R.string.error_social_user_not_found
+    "social.friend_self" -> R.string.error_social_friend_self
+    "social.friend_no_pending" -> R.string.error_social_friend_no_pending
+    "social.dm_friends_only" -> R.string.error_social_dm_friends_only
+    "social.message_empty" -> R.string.error_social_message_empty
+    "social.deck_not_found" -> R.string.error_social_deck_not_found
+    "social.username_invalid" -> R.string.error_social_username_invalid
     else -> R.string.error_unknown
 }
 

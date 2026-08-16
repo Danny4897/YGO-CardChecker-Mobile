@@ -1,0 +1,13 @@
+{
+  "name": "ygochecker-social-api",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --experimental-sqlite server.mjs",
+    "tunnel": "node scripts/tunnel.mjs",
+    "dev": "node scripts/dev.mjs"
+  }
+}

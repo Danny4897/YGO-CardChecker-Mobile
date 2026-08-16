@@ -4,8 +4,8 @@
 
 - `refactor/android-native`: **Flow redesign** — attuale motore nascosto dietro Coming Soon
 - **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
-- **Cloud sync** profilo/amici/mazzi/replay keyed by Discord/Google subject (OAuth alone ≠ sync)
-- OAuth Discord/Google: serve `DISCORD_CLIENT_ID` + `DISCORD_CLIENT_SECRET` (+ `GOOGLE_CLIENT_ID`) in `local.properties` per consent window + token exchange
+- **Cloud sync** profilo/amici/mazzi/replay keyed by Discord/Google subject (android/backend/README.md
+Profile as friend landing; public decks + world chat + DMs.
 
 ## Done
 

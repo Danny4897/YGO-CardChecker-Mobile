@@ -64,6 +64,18 @@ Discord needs both client id **and** secret for on-device token exchange (confid
 
 Without credentials, tapping Discord/Google shows a clear error instead of a fake login screen.
 
+## Social API (v0.3.0+)
+
+Friends / public decks / chat require the SQLite micro-backend on a host PC:
+
+```bash
+cd android/backend
+npm run dev
+```
+
+Copy the printed `https://….trycloudflare.com` URL into the app: **Settings → Social API**.
+Keep the PC online while testers use social features. See `android/backend/README.md`.
+
 ## User flow
 
 1. Open app → after splash, GET `update.json`.
