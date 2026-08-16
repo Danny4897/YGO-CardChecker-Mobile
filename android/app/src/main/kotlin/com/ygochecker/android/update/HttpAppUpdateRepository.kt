@@ -84,24 +84,33 @@ class HttpAppUpdateRepository @Inject constructor(
     }
 
     companion object {
-        private const val RAW_FEED =
-            "https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/distribution/update.json"
-        /** Semver @latest — purgeable; use this as default BuildConfig feed. */
-        private const val JSDELIVR_LATEST_FEED =
-            "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@latest/android/distribution/update.json"
-        /** Legacy URL baked into 0.2.9–0.3.3; keep probing so max(versionCode) still works after CDN catches up. */
-        private const val JSDELIVR_MAIN_FEED =
-            "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json"
+        /** GitHub Release asset — updates as soon as the release file is uploaded (no branch CDN). */
         private const val GITHUB_RELEASE_FEED =
             "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/latest/download/update.json"
+        private const val RAW_FEED =
+            "https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/distribution/update.json"
+        private const val RAW_FEED_ALT =
+            "https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/feed/android/distribution/update.json"
+        /** Semver @latest — purgeable. */
+        private const val JSDELIVR_LATEST_FEED =
+            "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@latest/android/distribution/update.json"
+        /** Legacy URL baked into 0.2.9–0.3.3 (@main branch CDN can lag hours). */
+        private const val JSDELIVR_MAIN_FEED =
+            "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json"
 
-        /** Primary + mirrors; caller picks highest versionCode (jsDelivr @main can lag for hours). */
+        /**
+         * Primary + mirrors; caller picks highest versionCode.
+         * Order prefers sources that invalidate immediately (release asset / raw / @latest).
+         * Legacy @main is last so a stale branch snapshot cannot win when others are fresh —
+         * max(versionCode) still uses it only if it is actually newer.
+         */
         fun feedCandidateUrls(primary: String): List<String> =
             linkedSetOf(
                 primary.trim(),
-                JSDELIVR_LATEST_FEED,
-                RAW_FEED,
                 GITHUB_RELEASE_FEED,
+                RAW_FEED,
+                RAW_FEED_ALT,
+                JSDELIVR_LATEST_FEED,
                 JSDELIVR_MAIN_FEED,
             ).filter { it.isNotBlank() }
 

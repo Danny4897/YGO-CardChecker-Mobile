@@ -12,28 +12,28 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 18
-        versionName = "0.3.6"
+        versionCode = 19
+        versionName = "0.3.7"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Rebuild feed aggiornamenti (@latest)\\n• Stessa app, canale update ripulito",
+                "• Updater multi-mirror (GitHub Releases + raw + @latest)\\n• Niente single-point-of-failure su jsDelivr @main",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
         buildConfigField("String", "DISCORD_CLIENT_ID", "\"${propertyOrEmpty("DISCORD_CLIENT_ID")}\"")
         buildConfigField("String", "DISCORD_CLIENT_SECRET", "\"${propertyOrEmpty("DISCORD_CLIENT_SECRET")}\"")
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${propertyOrEmpty("GOOGLE_CLIENT_ID")}\"")
-        // FOSS in-app updates — prefer @latest (semver tags purge cleanly). @main can lag ~12h.
+        // FOSS in-app updates — GitHub Release asset (no branch CDN). Client also probes mirrors.
         buildConfigField(
             "String",
             "UPDATE_FEED_URL",
             "\"${propertyOrDefault(
                 "UPDATE_FEED_URL",
-                "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@latest/android/distribution/update.json",
+                "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/latest/download/update.json",
             )}\"",
         )
         // Social micro-API (SQLite backend). Empty → social UI shows offline hint.

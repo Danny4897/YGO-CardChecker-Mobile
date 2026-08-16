@@ -24,14 +24,16 @@ class HttpAppUpdateRepositoryParseTest {
     }
 
     @Test
-    fun feedCandidatesIncludeLatestRawAndLegacyMain() {
+    fun feedCandidatesPreferReleaseAssetAndIncludeLegacyMain() {
         val urls = HttpAppUpdateRepository.feedCandidateUrls(
             "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json",
         )
+        assertEquals(true, urls.any { it.contains("releases/latest/download/update.json") })
         assertEquals(true, urls.any { it.contains("raw.githubusercontent.com") })
         assertEquals(true, urls.any { it.contains("@latest") })
         assertEquals(true, urls.any { it.contains("@main") })
-        assertEquals(true, urls.any { it.contains("releases/latest/download/update.json") })
         assertEquals(true, urls.size >= 4)
+        // Stale @main must not be the only source.
+        assertEquals(true, urls.first().contains("releases/latest") || urls[1].contains("releases/latest"))
     }
 }
