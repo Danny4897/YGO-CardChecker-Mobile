@@ -147,6 +147,10 @@ class ProfileViewModel @Inject constructor(
         private set
     var publicDeck by mutableStateOf<SocialPublicDeck?>(null)
         private set
+    var deckLoadError by mutableStateOf<String?>(null)
+        private set
+    var openingDeckId by mutableStateOf<Long?>(null)
+        private set
     var deckMessages by mutableStateOf<List<SocialChatMessage>>(emptyList())
         private set
     var dmMessages by mutableStateOf<List<SocialDmMessage>>(emptyList())
@@ -312,45 +316,57 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    /** Publish if needed, then return remote deck id for the chat/thread screen. */
+    /** Publish if needed, then open thread. Always invokes onOpened when a thread id is available. */
     fun openMyPublicDeck(local: Decklist, onOpened: (String) -> Unit) = viewModelScope.launch {
-        when (val r = social.publishDeck(local)) {
-            is AppResult.Ok -> {
-                val remoteId = r.value.ifBlank {
-                    meSocial?.let { "${it.id}:${local.id}" }.orEmpty()
+        openingDeckId = local.id
+        val sessionUser = meSocial ?: run {
+            when (val s = social.ensureSession(user.value.username, user.value.avatarCardId)) {
+                is AppResult.Ok -> {
+                    meSocial = s.value
+                    s.value
                 }
-                refreshMyDecks()
-                refreshDiscover()
-                if (remoteId.isNotBlank()) onOpened(remoteId)
-                else notice = "social.deck_not_found"
-            }
-            is AppResult.Err -> {
-                // Still try deterministic id after a prior successful sync
-                val fallback = meSocial?.let { "${it.id}:${local.id}" }
-                if (fallback != null) {
-                    when (social.getPublicDeck(fallback)) {
-                        is AppResult.Ok -> onOpened(fallback)
-                        is AppResult.Err -> notice = r.error.errorKey
-                    }
-                } else {
-                    notice = r.error.errorKey
+                is AppResult.Err -> {
+                    notice = s.error.errorKey
+                    openingDeckId = null
+                    return@launch
                 }
             }
         }
+        val provisional = "${sessionUser.id}--${local.id}"
+        when (val r = social.publishDeck(local)) {
+            is AppResult.Ok -> {
+                refreshMyDecks()
+                refreshDiscover()
+                onOpened(r.value.ifBlank { provisional })
+            }
+            is AppResult.Err -> {
+                // Still open via owner/local path — getPublicDeck resolves it.
+                onOpened(provisional)
+                notice = r.error.errorKey
+            }
+        }
+        openingDeckId = null
     }
 
     fun loadDeck(deckId: String, langFilter: String?) = viewModelScope.launch {
         busy = true
+        deckLoadError = null
+        publicDeck = null
+        deckMessages = emptyList()
         when (val r = social.getPublicDeck(deckId)) {
             is AppResult.Ok -> {
                 publicDeck = r.value
                 notice = null
+                val canonicalId = r.value.id
+                when (val m = social.listDeckMessages(canonicalId, langFilter)) {
+                    is AppResult.Ok -> deckMessages = m.value
+                    is AppResult.Err -> notice = m.error.errorKey
+                }
             }
-            is AppResult.Err -> notice = r.error.errorKey
-        }
-        when (val m = social.listDeckMessages(deckId, langFilter)) {
-            is AppResult.Ok -> deckMessages = m.value
-            is AppResult.Err -> notice = m.error.errorKey
+            is AppResult.Err -> {
+                deckLoadError = r.error.errorKey
+                notice = r.error.errorKey
+            }
         }
         busy = false
     }
@@ -652,22 +668,22 @@ private fun HomeProfile(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            // Prefer remote list (opens chat thread); fall back to local public with publish-on-open.
-            val myRemote = vm.viewedDecks.filter { it.ownerId == me?.id }
-            if (myRemote.isNotEmpty()) {
-                items(myRemote, key = { it.id }) { deck ->
-                    PublicDeckRow(
-                        name = deck.name,
-                        subtitle = stringResource(DesignR.string.profile_deck_chat_hint),
-                    ) { onOpenDeck(deck.id) }
-                }
-            } else if (publicLocal.isNotEmpty()) {
+            // Always list local public decks so the row is clickable even before sync finishes.
+            if (publicLocal.isNotEmpty()) {
                 items(publicLocal, key = { "local-${it.id}" }) { deck ->
+                    val remote = vm.viewedDecks.firstOrNull {
+                        it.ownerId == me?.id && it.localDeckId == deck.id
+                    }
                     PublicDeckRow(
                         name = deck.name,
                         subtitle = stringResource(DesignR.string.profile_deck_chat_hint),
+                        loading = vm.openingDeckId == deck.id,
                     ) {
-                        vm.openMyPublicDeck(deck) { onOpenDeck(it) }
+                        if (remote != null) {
+                            onOpenDeck(remote.id)
+                        } else {
+                            vm.openMyPublicDeck(deck) { onOpenDeck(it) }
+                        }
                     }
                 }
             } else {
@@ -794,88 +810,110 @@ private fun PublicDeckPane(vm: ProfileViewModel, deckId: String, onBack: () -> U
     var draft by remember { mutableStateOf("") }
     LaunchedEffect(deckId, langFilter) { vm.loadDeck(deckId, langFilter) }
     val deck = vm.publicDeck
+    val loadError = vm.deckLoadError
 
     Column(Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
             }
-            Text(deck?.name ?: stringResource(DesignR.string.profile_public_decks), style = MaterialTheme.typography.titleMedium)
-        }
-        if (deck == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(stringResource(DesignR.string.profile_loading))
-            }
-            return
-        }
-        Column(
-            Modifier.weight(1f).padding(horizontal = DuelSpacing.space4),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
             Text(
-                stringResource(DesignR.string.profile_deck_by, deck.ownerUsername),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                deck?.name ?: stringResource(DesignR.string.profile_public_decks),
+                style = MaterialTheme.typography.titleMedium,
             )
-            Text(stringResource(DesignR.string.profile_deck_cards), style = MaterialTheme.typography.titleSmall)
-            Column(
-                Modifier
-                    .heightIn(max = 180.dp)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                deck.cards.forEach { c ->
-                    Text("${c.quantity}× ${c.name.ifBlank { c.cardId.toString() }} (${c.section})")
-                }
-            }
-            Text(stringResource(DesignR.string.profile_deck_chat), style = MaterialTheme.typography.titleSmall)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = langFilter == null,
-                    onClick = { langFilter = null },
-                    label = { Text(stringResource(DesignR.string.profile_chat_all_langs)) },
-                )
-                FilterChip(
-                    selected = langFilter == "it",
-                    onClick = { langFilter = "it" },
-                    label = { Text("IT") },
-                )
-                FilterChip(
-                    selected = langFilter == "en",
-                    onClick = { langFilter = "en" },
-                    label = { Text("EN") },
-                )
-            }
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(vm.deckMessages, key = { it.id }) { msg ->
-                    Column {
-                        Text(
-                            "${msg.username} · ${msg.lang}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(msg.body, style = MaterialTheme.typography.bodyMedium)
+        }
+        when {
+            loadError != null && deck == null -> {
+                Column(
+                    Modifier.fillMaxSize().padding(DuelSpacing.space4),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(errorMessage(loadError), color = MaterialTheme.colorScheme.error)
+                    FilledTonalButton(onClick = { vm.loadDeck(deckId, langFilter) }) {
+                        Text(stringResource(DesignR.string.profile_retry))
                     }
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = { draft = it },
-                    modifier = Modifier.weight(1f),
-                    label = { Text(stringResource(DesignR.string.profile_chat_hint)) },
-                    singleLine = true,
-                )
-                IconButton(
-                    onClick = {
-                        val body = draft.trim()
-                        if (body.isNotEmpty()) {
-                            val postLang = langFilter ?: lang.id.lowercase().take(2)
-                            vm.postDeckMessage(deckId, body, postLang)
-                            draft = ""
-                        }
-                    },
+            deck == null -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            else -> {
+                Column(
+                    Modifier.weight(1f).padding(horizontal = DuelSpacing.space4),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, null)
+                    Text(
+                        stringResource(DesignR.string.profile_deck_by, deck.ownerUsername),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(stringResource(DesignR.string.profile_deck_cards), style = MaterialTheme.typography.titleSmall)
+                    Column(
+                        Modifier
+                            .heightIn(max = 180.dp)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        deck.cards.forEach { c ->
+                            Text("${c.quantity}× ${c.name.ifBlank { c.cardId.toString() }} (${c.section})")
+                        }
+                    }
+                    Text(stringResource(DesignR.string.profile_deck_chat), style = MaterialTheme.typography.titleSmall)
+                    Row(
+                        Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilterChip(
+                            selected = langFilter == null,
+                            onClick = { langFilter = null },
+                            label = { Text(stringResource(DesignR.string.profile_chat_all_langs)) },
+                        )
+                        FilterChip(
+                            selected = langFilter == "it",
+                            onClick = { langFilter = "it" },
+                            label = { Text("IT") },
+                        )
+                        FilterChip(
+                            selected = langFilter == "en",
+                            onClick = { langFilter = "en" },
+                            label = { Text("EN") },
+                        )
+                    }
+                    LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(vm.deckMessages, key = { it.id }) { msg ->
+                            Column {
+                                Text(
+                                    "${msg.username} · ${msg.lang}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(msg.body, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = draft,
+                            onValueChange = { draft = it },
+                            modifier = Modifier.weight(1f),
+                            label = { Text(stringResource(DesignR.string.profile_chat_hint)) },
+                            singleLine = true,
+                        )
+                        IconButton(
+                            onClick = {
+                                val body = draft.trim()
+                                if (body.isNotEmpty()) {
+                                    val postLang = langFilter ?: lang.id.lowercase().take(2)
+                                    vm.postDeckMessage(deck.id, body, postLang)
+                                    draft = ""
+                                }
+                            },
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, null)
+                        }
+                    }
                 }
             }
         }
@@ -1001,11 +1039,16 @@ private fun SocialHero(
 }
 
 @Composable
-private fun PublicDeckRow(name: String, subtitle: String? = null, onClick: () -> Unit) {
+private fun PublicDeckRow(
+    name: String,
+    subtitle: String? = null,
+    loading: Boolean = false,
+    onClick: () -> Unit,
+) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(enabled = !loading, onClick = onClick),
     ) {
         Row(
             Modifier.padding(DuelSpacing.space3),
@@ -1023,7 +1066,11 @@ private fun PublicDeckRow(name: String, subtitle: String? = null, onClick: () ->
                     )
                 }
             }
-            Icon(Icons.Default.Message, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            if (loading) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(Icons.Default.Message, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }

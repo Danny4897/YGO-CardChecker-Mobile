@@ -9,6 +9,7 @@ Profile as friend landing; public decks + world chat + DMs.
 
 ## Done
 
+- 2026-08-16: **v0.3.3** — fix click mazzi pubblici ? thread
 - 2026-08-16: **v0.3.2** — fix ricerca utenti (sessione + feedback)
 - 2026-08-16: **Verifier** â€” Android `gradlew test` PASS (JBR 21); :app / :core:* / :data:* OK; no failures
 - 2026-08-16: **v0.2.9** â€” feed aggiornamenti su jsDelivr (fix cache raw GitHub ~5 min)

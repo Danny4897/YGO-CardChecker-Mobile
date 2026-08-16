@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -81,19 +83,20 @@ class HttpSocialRepository @Inject constructor(
                     if (avatarCardId != null) put("avatarCardId", avatarCardId)
                     else put("avatarCardId", JSONObject.NULL)
                 }
-            when (val r = request("POST", "/v1/register", body, auth = false)) {
+            when (val r = request("POST", listOf("v1", "register"), body, auth = false)) {
                 is AppResult.Err -> r
                 is AppResult.Ok -> {
                     val root = r.value
                     val token = root.optString("token")
                     if (token.isBlank()) return@withContext AppResult.Err(AppError("social.bad_response"))
                     context.appPrefsStore.edit { it[socialTokenKey] = token }
-                    parseUser(root.getJSONObject("user")).let { AppResult.Ok(it) }
+                    AppResult.Ok(parseUser(root.getJSONObject("user")))
                 }
             }
         }
 
-    override suspend fun refreshMe(): AppResult<SocialUser> = getJson("/v1/me") { parseUser(it.getJSONObject("user")) }
+    override suspend fun refreshMe(): AppResult<SocialUser> =
+        getJson(listOf("v1", "me")) { parseUser(it.getJSONObject("user")) }
 
     override suspend fun updateMe(username: String, avatarCardId: Int?): AppResult<SocialUser> {
         val body = JSONObject()
@@ -102,32 +105,33 @@ class HttpSocialRepository @Inject constructor(
                 if (avatarCardId == null) put("avatarCardId", JSONObject.NULL)
                 else put("avatarCardId", avatarCardId)
             }
-        return request("PATCH", "/v1/me", body).mapUser()
+        return request("PATCH", listOf("v1", "me"), body).mapUser()
     }
 
-    override suspend fun searchUsers(query: String): AppResult<List<SocialUser>> {
-        val q = query.trim()
-        val path = "/v1/users/search?q=" + java.net.URLEncoder.encode(q, "UTF-8")
-        return getJson(path) { root ->
+    override suspend fun searchUsers(query: String): AppResult<List<SocialUser>> =
+        getJson(listOf("v1", "users", "search"), mapOf("q" to query.trim())) { root ->
             root.optJSONArray("users")?.toUserList().orEmpty()
         }
-    }
 
     override suspend fun getUser(idOrCode: String): AppResult<SocialUser> =
-        getJson("/v1/users/${encode(idOrCode)}") { parseUser(it.getJSONObject("user")) }
+        getJson(listOf("v1", "users", idOrCode.trim())) { parseUser(it.getJSONObject("user")) }
 
     override suspend fun requestFriend(toUserId: String): AppResult<FriendshipStatus> {
         val body = JSONObject().put("toUserId", toUserId)
-        return request("POST", "/v1/friends/request", body).map { parseFriendship(it.optString("friendship")) }
+        return request("POST", listOf("v1", "friends", "request"), body).map {
+            parseFriendship(it.optString("friendship"))
+        }
     }
 
     override suspend fun acceptFriend(fromUserId: String): AppResult<FriendshipStatus> {
         val body = JSONObject().put("fromUserId", fromUserId)
-        return request("POST", "/v1/friends/accept", body).map { parseFriendship(it.optString("friendship")) }
+        return request("POST", listOf("v1", "friends", "accept"), body).map {
+            parseFriendship(it.optString("friendship"))
+        }
     }
 
     override suspend fun listFriends(): AppResult<Pair<List<SocialUser>, List<SocialUser>>> =
-        getJson("/v1/friends") { root ->
+        getJson(listOf("v1", "friends")) { root ->
             root.getJSONArray("friends").toUserList() to root.getJSONArray("incoming").toUserList()
         }
 
@@ -148,7 +152,7 @@ class HttpSocialRepository @Inject constructor(
             .put("name", deck.name)
             .put("coverCardIds", covers)
             .put("cards", cards)
-        return when (val r = request("PUT", "/v1/me/decks/${deck.id}", body)) {
+        return when (val r = request("PUT", listOf("v1", "me", "decks", deck.id.toString()), body)) {
             is AppResult.Err -> r
             is AppResult.Ok -> {
                 val id = r.value.optString("id")
@@ -159,50 +163,27 @@ class HttpSocialRepository @Inject constructor(
     }
 
     override suspend fun unpublishDeck(localDeckId: Long): AppResult<Unit> =
-        request("DELETE", "/v1/me/decks/$localDeckId", null).map { }
+        request("DELETE", listOf("v1", "me", "decks", localDeckId.toString()), null).map { }
 
     override suspend fun listPublicDecks(userId: String): AppResult<List<SocialPublicDeckSummary>> =
-        getJson("/v1/users/${encode(userId)}/decks") { root ->
+        getJson(listOf("v1", "users", userId, "decks")) { root ->
             root.getJSONArray("decks").toDeckSummaries()
         }
 
     override suspend fun listAllPublicDecks(limit: Int): AppResult<List<SocialPublicDeckSummary>> =
-        getJson("/v1/decks?limit=$limit") { root ->
+        getJson(listOf("v1", "decks"), mapOf("limit" to limit.toString())) { root ->
             root.getJSONArray("decks").toDeckSummaries()
         }
 
-    override suspend fun getPublicDeck(deckId: String): AppResult<SocialPublicDeck> =
-        getJson("/v1/decks/${encode(deckId)}") { root ->
-            val o = root.getJSONObject("deck")
-            val cardsArr = o.optJSONArray("cards") ?: JSONArray()
-            val cards = buildList {
-                for (i in 0 until cardsArr.length()) {
-                    val c = cardsArr.getJSONObject(i)
-                    add(
-                        SocialDeckCard(
-                            cardId = c.optInt("cardId"),
-                            quantity = c.optInt("quantity", 1),
-                            section = c.optString("section", DeckSection.MAIN.name.lowercase()),
-                            name = c.optString("name"),
-                        ),
-                    )
-                }
-            }
-            SocialPublicDeck(
-                id = o.getString("id"),
-                ownerId = o.getString("ownerId"),
-                ownerUsername = o.optString("ownerUsername"),
-                localDeckId = o.optLong("localDeckId"),
-                name = o.optString("name"),
-                coverCardIds = o.optJSONArray("coverCardIds").toIntList(),
-                cards = cards,
-                updatedAt = o.optLong("updatedAt"),
-            )
-        }
+    override suspend fun getPublicDeck(deckId: String): AppResult<SocialPublicDeck> {
+        val path = ownerLocalPath(deckId) ?: listOf("v1", "decks", deckId)
+        return getJson(path) { parseDeck(it.getJSONObject("deck")) }
+    }
 
     override suspend fun listDeckMessages(deckId: String, lang: String?): AppResult<List<SocialChatMessage>> {
-        val q = if (lang.isNullOrBlank()) "" else "?lang=${encode(lang)}"
-        return getJson("/v1/decks/${encode(deckId)}/messages$q") { root ->
+        val query = if (lang.isNullOrBlank()) emptyMap() else mapOf("lang" to lang)
+        // Prefer stable owner/local messages via canonical deck id after resolve — path uses deckId as segment.
+        return getJson(listOf("v1", "decks", deckId, "messages"), query) { root ->
             root.getJSONArray("messages").toChatList()
         }
     }
@@ -213,13 +194,13 @@ class HttpSocialRepository @Inject constructor(
         lang: String,
     ): AppResult<SocialChatMessage> {
         val payload = JSONObject().put("body", body).put("lang", lang)
-        return request("POST", "/v1/decks/${encode(deckId)}/messages", payload).map {
+        return request("POST", listOf("v1", "decks", deckId, "messages"), payload).map {
             parseChat(it.getJSONObject("message"))
         }
     }
 
     override suspend fun listDm(peerUserId: String): AppResult<List<SocialDmMessage>> =
-        getJson("/v1/dm/${encode(peerUserId)}/messages") { root ->
+        getJson(listOf("v1", "dm", peerUserId, "messages")) { root ->
             val arr = root.getJSONArray("messages")
             buildList {
                 for (i in 0 until arr.length()) {
@@ -239,7 +220,7 @@ class HttpSocialRepository @Inject constructor(
 
     override suspend fun postDm(peerUserId: String, body: String): AppResult<SocialDmMessage> {
         val payload = JSONObject().put("body", body)
-        return request("POST", "/v1/dm/${encode(peerUserId)}/messages", payload).map {
+        return request("POST", listOf("v1", "dm", peerUserId, "messages"), payload).map {
             val o = it.getJSONObject("message")
             SocialDmMessage(
                 id = o.getLong("id"),
@@ -249,6 +230,49 @@ class HttpSocialRepository @Inject constructor(
                 createdAt = o.optLong("createdAt"),
             )
         }
+    }
+
+    /** Prefer /v1/u/{owner}/d/{local} so deck ids never break URL parsers. */
+    private fun ownerLocalPath(deckId: String): List<String>? {
+        val id = deckId.trim()
+        val sep = when {
+            id.contains("--") -> "--"
+            id.contains(':') -> ":"
+            else -> return null
+        }
+        val idx = id.lastIndexOf(sep)
+        if (idx <= 0) return null
+        val owner = id.substring(0, idx)
+        val local = id.substring(idx + sep.length)
+        if (owner.isBlank() || local.toLongOrNull() == null) return null
+        return listOf("v1", "u", owner, "d", local)
+    }
+
+    private fun parseDeck(o: JSONObject): SocialPublicDeck {
+        val cardsArr = o.optJSONArray("cards") ?: JSONArray()
+        val cards = buildList {
+            for (i in 0 until cardsArr.length()) {
+                val c = cardsArr.getJSONObject(i)
+                add(
+                    SocialDeckCard(
+                        cardId = c.optInt("cardId"),
+                        quantity = c.optInt("quantity", 1),
+                        section = c.optString("section", DeckSection.MAIN.name.lowercase()),
+                        name = c.optString("name"),
+                    ),
+                )
+            }
+        }
+        return SocialPublicDeck(
+            id = o.getString("id"),
+            ownerId = o.getString("ownerId"),
+            ownerUsername = o.optString("ownerUsername"),
+            localDeckId = o.optLong("localDeckId"),
+            name = o.optString("name"),
+            coverCardIds = o.optJSONArray("coverCardIds").toIntList(),
+            cards = cards,
+            updatedAt = o.optLong("updatedAt"),
+        )
     }
 
     private suspend fun deviceId(): String {
@@ -264,19 +288,28 @@ class HttpSocialRepository @Inject constructor(
     private suspend fun token(): String? =
         context.appPrefsStore.data.first()[socialTokenKey]
 
-    private suspend fun <T> getJson(path: String, parse: (JSONObject) -> T): AppResult<T> =
-        request("GET", path, null).map(parse)
+    private suspend fun <T> getJson(
+        segments: List<String>,
+        query: Map<String, String> = emptyMap(),
+        parse: (JSONObject) -> T,
+    ): AppResult<T> = request("GET", segments, null, query = query).map(parse)
 
     private suspend fun request(
         method: String,
-        path: String,
+        segments: List<String>,
         body: JSONObject?,
         auth: Boolean = true,
+        query: Map<String, String> = emptyMap(),
     ): AppResult<JSONObject> = withContext(Dispatchers.IO) {
         val base = resolveBase()
         if (base.isBlank()) return@withContext AppResult.Err(AppError("social.not_configured"))
-        val url = base.trimEnd('/') + path
-        val builder = Request.Builder().url(url)
+        val root = base.toHttpUrlOrNull()
+            ?: return@withContext AppResult.Err(AppError("social.not_configured"))
+        val httpUrl: HttpUrl = root.newBuilder().apply {
+            segments.forEach { addPathSegment(it) }
+            query.forEach { (k, v) -> addQueryParameter(k, v) }
+        }.build()
+        val builder = Request.Builder().url(httpUrl)
         if (auth) {
             val t = token() ?: return@withContext AppResult.Err(AppError("social.unauthorized"))
             builder.header("Authorization", "Bearer $t")
@@ -306,7 +339,8 @@ class HttpSocialRepository @Inject constructor(
         }
     }
 
-    private fun AppResult<JSONObject>.mapUser(): AppResult<SocialUser> = map { parseUser(it.getJSONObject("user")) }
+    private fun AppResult<JSONObject>.mapUser(): AppResult<SocialUser> =
+        map { parseUser(it.getJSONObject("user")) }
 
     private inline fun <T, R> AppResult<T>.map(transform: (T) -> R): AppResult<R> = when (this) {
         is AppResult.Ok -> AppResult.Ok(transform(value))
@@ -374,7 +408,4 @@ class HttpSocialRepository @Inject constructor(
             for (i in 0 until length()) add(optInt(i))
         }
     }
-
-    private fun encode(value: String): String =
-        java.net.URLEncoder.encode(value, Charsets.UTF_8.name())
 }

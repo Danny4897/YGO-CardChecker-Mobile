@@ -164,6 +164,55 @@ function findUser(idOrCode) {
   );
 }
 
+/** Resolve public deck by id (`owner--local` or legacy `owner:local`) or owner+local. */
+function findPublicDeck(rawId) {
+  const id = String(rawId || '').trim();
+  if (!id) return null;
+  let row = db.prepare('SELECT * FROM public_decks WHERE id = ?').get(id);
+  if (row) return row;
+  if (id.includes('--')) {
+    row = db.prepare('SELECT * FROM public_decks WHERE id = ?').get(id.replace('--', ':'));
+    if (row) return row;
+    const [owner, local] = id.split('--');
+    if (owner && local) {
+      return (
+        db
+          .prepare('SELECT * FROM public_decks WHERE owner_id = ? AND local_deck_id = ?')
+          .get(owner, Number(local)) || null
+      );
+    }
+  }
+  if (id.includes(':')) {
+    row = db.prepare('SELECT * FROM public_decks WHERE id = ?').get(id.replace(':', '--'));
+    if (row) return row;
+    const idx = id.lastIndexOf(':');
+    const owner = id.slice(0, idx);
+    const local = id.slice(idx + 1);
+    if (owner && local) {
+      return (
+        db
+          .prepare('SELECT * FROM public_decks WHERE owner_id = ? AND local_deck_id = ?')
+          .get(owner, Number(local)) || null
+      );
+    }
+  }
+  return null;
+}
+
+function deckPayload(deck) {
+  const owner = db.prepare('SELECT * FROM users WHERE id = ?').get(deck.owner_id);
+  return {
+    id: deck.id,
+    ownerId: deck.owner_id,
+    ownerUsername: owner?.username || '?',
+    localDeckId: deck.local_deck_id,
+    name: deck.name,
+    coverCardIds: JSON.parse(deck.cover_card_ids || '[]'),
+    cards: JSON.parse(deck.cards_json || '[]'),
+    updatedAt: deck.updated_at,
+  };
+}
+
 function parsePath(url) {
   const u = new URL(url, 'http://localhost');
   return { pathname: u.pathname.replace(/\/+$/, '') || '/', searchParams: u.searchParams };
@@ -419,12 +468,13 @@ async function handler(req, res) {
         ? body.coverCardIds.map(Number).filter((n) => n > 0).slice(0, 2)
         : [];
       const cards = Array.isArray(body.cards) ? body.cards : [];
-      const id = `${me.id}:${localId}`;
+      const id = `${me.id}--${localId}`;
       const t = now();
       db.prepare(
         `INSERT INTO public_decks (id, owner_id, local_deck_id, name, cover_card_ids, cards_json, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(owner_id, local_deck_id) DO UPDATE SET
+           id = excluded.id,
            name = excluded.name,
            cover_card_ids = excluded.cover_card_ids,
            cards_json = excluded.cards_json,
@@ -443,32 +493,30 @@ async function handler(req, res) {
       return json(res, 200, { ok: true });
     }
 
+    const ownerDeck = /^\/v1\/u\/([^/]+)\/d\/(\d+)$/.exec(pathname);
+    if (req.method === 'GET' && ownerDeck) {
+      const ownerId = decodeURIComponent(ownerDeck[1]);
+      const localId = Number(ownerDeck[2]);
+      const deck = db
+        .prepare('SELECT * FROM public_decks WHERE owner_id = ? AND local_deck_id = ?')
+        .get(ownerId, localId);
+      if (!deck) return json(res, 404, { errorKey: 'social.deck_not_found' });
+      return json(res, 200, { deck: deckPayload(deck) });
+    }
+
     const deckMatch = /^\/v1\/decks\/([^/]+)$/.exec(pathname);
     if (req.method === 'GET' && deckMatch) {
-      const deck = db
-        .prepare('SELECT * FROM public_decks WHERE id = ?')
-        .get(decodeURIComponent(deckMatch[1]));
+      const deck = findPublicDeck(decodeURIComponent(deckMatch[1]));
       if (!deck) return json(res, 404, { errorKey: 'social.deck_not_found' });
-      const owner = db.prepare('SELECT * FROM users WHERE id = ?').get(deck.owner_id);
-      return json(res, 200, {
-        deck: {
-          id: deck.id,
-          ownerId: deck.owner_id,
-          ownerUsername: owner?.username || '?',
-          localDeckId: deck.local_deck_id,
-          name: deck.name,
-          coverCardIds: JSON.parse(deck.cover_card_ids || '[]'),
-          cards: JSON.parse(deck.cards_json || '[]'),
-          updatedAt: deck.updated_at,
-        },
-      });
+      return json(res, 200, { deck: deckPayload(deck) });
     }
 
     const deckMsg = /^\/v1\/decks\/([^/]+)\/messages$/.exec(pathname);
     if (deckMsg) {
-      const deckId = decodeURIComponent(deckMsg[1]);
-      const deck = db.prepare('SELECT id FROM public_decks WHERE id = ?').get(deckId);
-      if (!deck) return json(res, 404, { errorKey: 'social.deck_not_found' });
+      const deckIdRaw = decodeURIComponent(deckMsg[1]);
+      const deckRow = findPublicDeck(deckIdRaw);
+      if (!deckRow) return json(res, 404, { errorKey: 'social.deck_not_found' });
+      const deckId = deckRow.id;
       if (req.method === 'GET') {
         const lang = String(searchParams.get('lang') || '').trim().toLowerCase();
         const rows = lang

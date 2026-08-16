@@ -322,6 +322,7 @@
     <string name="profile_message">Message</string>
     <string name="profile_copy_code">Copy code</string>
     <string name="profile_loading">Loading…</string>
+    <string name="profile_retry">Retry</string>
     <string name="profile_social_offline_hint">Set the Social API URL in Settings (from the PC tunnel) to find friends online.</string>
     <string name="profile_deck_by">By %1$s</string>
     <string name="profile_deck_cards">Cards</string>
