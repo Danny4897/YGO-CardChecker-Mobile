@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 15
-        versionName = "0.3.3"
+        versionCode = 16
+        versionName = "0.3.4"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Fix click mazzi pubblici → thread vista+chat\\n• URL deck stabili (/v1/u/…/d/…)",
+                "• Fix popup aggiornamento (feed GitHub raw + fallback multi-CDN)\\n• jsDelivr @main era bloccato su 0.3.1",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
@@ -33,7 +33,7 @@ android {
             "UPDATE_FEED_URL",
             "\"${propertyOrDefault(
                 "UPDATE_FEED_URL",
-                "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@main/android/distribution/update.json",
+                "https://raw.githubusercontent.com/Danny4897/YGO-CardChecker-Mobile/main/android/distribution/update.json",
             )}\"",
         )
         // Social micro-API (SQLite backend). Empty → social UI shows offline hint.
