@@ -1,6 +1,6 @@
 {
-  "versionCode": 13,
-  "versionName": "0.3.1",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.3.1/app-release.apk",
-  "changelog": "Mazzi pubblici: apri i tuoi thread (vista+chat) · feed globale — chiunque può entrare e chattare"
+  "versionCode": 14,
+  "versionName": "0.3.2",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.3.2/app-release.apk",
+  "changelog": "Fix ricerca utenti (sessione + feedback live su nickname/codice)"
 }
