@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Badge
@@ -46,6 +47,9 @@ import androidx.compose.ui.unit.dp
 
 /** Navigates to Settings. Provided by AppShell. */
 val LocalOpenSettings = compositionLocalOf<(() -> Unit)?> { null }
+
+/** Navigates back from Settings/Overlay to whatever they were opened from. Provided by AppShell. */
+val LocalGoBack = compositionLocalOf<(() -> Unit)?> { null }
 
 enum class StatusTone { Neutral, Success, Warning, Error, Info }
 
@@ -125,6 +129,12 @@ fun ThemedScreenHeader(
                 if (openSettings != null) {
                     IconButton(onClick = openSettings) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings))
+                    }
+                }
+                val goBack = LocalGoBack.current
+                if (goBack != null) {
+                    IconButton(onClick = goBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.editor_back))
                     }
                 }
                 Text(

@@ -69,6 +69,7 @@ import com.ygochecker.android.update.AppUpdateHost
 import com.ygochecker.android.update.AppUpdateViewModel
 import com.ygochecker.core.designsystem.DuelEntranceSplash
 import com.ygochecker.core.designsystem.DuelSpacing
+import com.ygochecker.core.designsystem.LocalGoBack
 import com.ygochecker.core.designsystem.LocalOpenSettings
 import com.ygochecker.core.designsystem.R as DesignR
 import com.ygochecker.core.designsystem.YgoCheckerTheme
@@ -235,6 +236,7 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
 
     CompositionLocalProvider(
         LocalOpenSettings provides if (section == "tabs") ({ section = "settings" }) else null,
+        LocalGoBack provides if (section != "tabs") ({ section = if (section == "overlay") "settings" else "tabs" }) else null,
     ) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
