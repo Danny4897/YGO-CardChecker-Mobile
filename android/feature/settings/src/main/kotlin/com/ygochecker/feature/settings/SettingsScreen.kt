@@ -1,5 +1,6 @@
 package com.ygochecker.feature.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,7 +16,14 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -120,6 +128,7 @@ fun SettingsRoute(
     onCheckUpdates: (() -> Unit)? = null,
     installedVersionName: String = "",
     installedVersionCode: Int = 0,
+    onOpenOverlay: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val format by vm.format.collectAsStateWithLifecycle()
@@ -151,7 +160,7 @@ fun SettingsRoute(
             stringResource(DesignR.string.settings_subtitle),
         )
 
-        SettingsGroup(title = stringResource(DesignR.string.settings_format)) {
+        SettingsGroup(title = stringResource(DesignR.string.settings_format), icon = Icons.Default.Style) {
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(DuelSpacing.space2)) {
                 GameFormat.entries.forEach { item ->
                     FormatOptionRow(
@@ -168,6 +177,7 @@ fun SettingsRoute(
         SettingsGroup(
             title = stringResource(DesignR.string.settings_language),
             modifier = Modifier.padding(top = DuelSpacing.space5),
+            icon = Icons.Default.Language,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppLanguage.entries.forEach { item ->
@@ -197,6 +207,7 @@ fun SettingsRoute(
         SettingsGroup(
             title = stringResource(DesignR.string.settings_account),
             modifier = Modifier.padding(top = DuelSpacing.space5),
+            icon = Icons.Default.AccountCircle,
         ) {
             when (authState) {
                 SocialAuthState.EMAIL_LINKED -> Text(
@@ -244,6 +255,7 @@ fun SettingsRoute(
         SettingsGroup(
             title = stringResource(DesignR.string.settings_sync),
             modifier = Modifier.padding(top = DuelSpacing.space5),
+            icon = Icons.Default.CloudSync,
         ) {
             Text(
                 stringResource(DesignR.string.settings_catalog_count, pack.catalogCount),
@@ -307,10 +319,42 @@ fun SettingsRoute(
             }
         }
 
+        SettingsGroup(
+            title = stringResource(DesignR.string.nav_overlay),
+            modifier = Modifier.padding(top = DuelSpacing.space5),
+            icon = Icons.Default.Visibility,
+        ) {
+            Text(
+                stringResource(DesignR.string.overlay_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenOverlay)
+                    .padding(vertical = DuelSpacing.space2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(DesignR.string.overlay_title),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
         if (onCheckUpdates != null) {
             SettingsGroup(
                 title = stringResource(DesignR.string.settings_update),
                 modifier = Modifier.padding(top = DuelSpacing.space5),
+                icon = Icons.Default.SystemUpdate,
             ) {
                 if (installedVersionName.isNotEmpty()) {
                     Text(
