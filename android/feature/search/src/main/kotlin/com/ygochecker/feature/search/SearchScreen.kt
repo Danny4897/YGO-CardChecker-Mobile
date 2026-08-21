@@ -28,25 +28,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Terrain
-import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -90,8 +84,10 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import coil3.size.Size
+import com.ygochecker.core.designsystem.AttributeBadge
 import com.ygochecker.core.designsystem.CardDetailSheet
 import com.ygochecker.core.designsystem.CardDetailState
+import com.ygochecker.core.designsystem.CardTypeBadge
 import com.ygochecker.core.designsystem.CollectionPickOption
 import com.ygochecker.core.designsystem.DuelSpacing
 import com.ygochecker.core.designsystem.EmptyState
@@ -602,12 +598,12 @@ private fun SearchFiltersBar(
                 selected = filters.playableOnly,
                 onClick = { onChange { it.copy(playableOnly = !it.playableOnly) } },
                 label = stringResource(DesignR.string.search_filter_playable),
-                icon = Icons.Default.Security,
+                leading = { Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(16.dp)) },
             )
-            typeChip(filters, "Monster", DesignR.string.search_filter_monster, Icons.Default.PersonAdd, onChange)
-            typeChip(filters, "Spell", DesignR.string.search_filter_spell, Icons.Default.AutoFixHigh, onChange)
-            typeChip(filters, "Trap", DesignR.string.search_filter_trap, Icons.Default.Inventory2, onChange)
-            typeChip(filters, "EXTRA", DesignR.string.search_filter_extra, Icons.Default.AutoAwesome, onChange)
+            typeChip(filters, "Monster", DesignR.string.search_filter_monster, "Effect Monster", onChange)
+            typeChip(filters, "Spell", DesignR.string.search_filter_spell, "Spell Card", onChange)
+            typeChip(filters, "Trap", DesignR.string.search_filter_trap, "Trap Card", onChange)
+            typeChip(filters, "EXTRA", DesignR.string.search_filter_extra, "Fusion Monster", onChange)
         }
         FilterSection(stringResource(DesignR.string.search_filter_section_level)) {
             (1..12).forEach { level ->
@@ -623,7 +619,7 @@ private fun SearchFiltersBar(
                         }
                     },
                     label = "$level",
-                    icon = Icons.Default.Star,
+                    leading = { Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp)) },
                 )
             }
         }
@@ -661,12 +657,12 @@ private fun SearchFiltersBar(
                         onChange { it.copy(effectTag = if (it.effectTag == tag) "" else tag) }
                     },
                     label = effectMechanicLabel(tag),
-                    icon = effectTagIcon(tag),
+                    leading = { Icon(effectTagIcon(tag), contentDescription = null, modifier = Modifier.size(16.dp)) },
                 )
             }
         }
         FilterSection(stringResource(DesignR.string.search_filter_section_attr)) {
-            ATTRIBUTE_FILTERS.forEach { (attr, icon) ->
+            ATTRIBUTE_NAMES.forEach { attr ->
                 IconFilterChip(
                     selected = filters.attribute.equals(attr, ignoreCase = true),
                     onClick = {
@@ -675,7 +671,7 @@ private fun SearchFiltersBar(
                         }
                     },
                     label = attr,
-                    icon = icon,
+                    leading = { AttributeBadge(attr, compact = true) },
                 )
             }
         }
@@ -689,7 +685,7 @@ private fun SearchFiltersBar(
                         }
                     },
                     label = race,
-                    icon = Icons.Default.Shield,
+                    leading = { Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(16.dp)) },
                 )
             }
         }
@@ -702,7 +698,7 @@ private fun SearchFiltersBar(
                     }
                 },
                 label = stringResource(DesignR.string.search_filter_year_hat),
-                icon = Icons.Default.AutoAwesome,
+                leading = { Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp)) },
             )
         }
         if (filters.hasFacets || !filters.playableOnly) {
@@ -735,15 +731,13 @@ private fun IconFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
     label: String,
-    icon: ImageVector,
+    leading: @Composable () -> Unit,
 ) {
     FilterChip(
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
-        leadingIcon = {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
-        },
+        leadingIcon = leading,
     )
 }
 
@@ -752,7 +746,7 @@ private fun typeChip(
     filters: SearchFilters,
     needle: String,
     labelRes: Int,
-    icon: ImageVector,
+    representativeType: String,
     onChange: ((SearchFilters) -> SearchFilters) -> Unit,
 ) {
     IconFilterChip(
@@ -761,7 +755,7 @@ private fun typeChip(
             onChange { it.copy(typeNeedle = if (it.typeNeedle == needle) "" else needle) }
         },
         label = stringResource(labelRes),
-        icon = icon,
+        leading = { CardTypeBadge(representativeType, compact = true) },
     )
 }
 
@@ -809,15 +803,7 @@ private fun effectTagIcon(tag: String): ImageVector = when (tag) {
     else -> Icons.Default.AutoFixHigh
 }
 
-private val ATTRIBUTE_FILTERS = listOf(
-    "DARK" to Icons.Default.DarkMode,
-    "LIGHT" to Icons.Default.WbSunny,
-    "EARTH" to Icons.Default.Terrain,
-    "WATER" to Icons.Default.WaterDrop,
-    "FIRE" to Icons.Default.LocalFireDepartment,
-    "WIND" to Icons.Default.Air,
-    "DIVINE" to Icons.Default.AutoAwesome,
-)
+private val ATTRIBUTE_NAMES = listOf("DARK", "LIGHT", "EARTH", "WATER", "FIRE", "WIND", "DIVINE")
 
 private val RACE_FILTERS = listOf(
     "Warrior", "Spellcaster", "Dragon", "Machine", "Fiend", "Zombie",
