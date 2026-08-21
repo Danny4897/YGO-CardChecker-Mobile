@@ -182,3 +182,23 @@ data class FormatCardRole(
     val rulingNotes: String? = null,
     val partnerIds: List<Int> = emptyList(),
 )
+
+enum class SegocEffectType { ACTIVATE, IGNITION, TRIGGER, QUICK, CONTINUOUS, NONE }
+
+enum class TriggerEvent {
+    DESTROYED, TO_GRAVE, REMOVED, LEAVES_FIELD,
+    SUMMON_SUCCESS, FLIP_SUMMON_SUCCESS, SPECIAL_SUMMON_SUCCESS,
+    DISCARDED, DRAWN, DAMAGE, CONTROL_CHANGED, BATTLE_DESTROYED,
+    OTHER,
+}
+
+/** Whole-catalog SEGOC/timing profile for one card, extracted from real EDOPro Lua.
+ * [spellSpeed] is null for vanilla cards with no effect block — it is never itself read from
+ * Lua (not a real Lua constant), it's derived from card type + [effectType] on the TS side. */
+data class SegocProfileSummary(
+    val cardId: Int,
+    val effectType: SegocEffectType,
+    val spellSpeed: Int?,
+    val missedTimingRisk: Boolean,
+    val triggerEvents: List<TriggerEvent>,
+)

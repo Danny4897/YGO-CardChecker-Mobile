@@ -57,6 +57,16 @@ data class EffectScriptEntity(
     val tagsCsv: String = "",
 )
 
+@Entity(tableName = "segoc_profiles")
+data class SegocProfileEntity(
+    @PrimaryKey val cardId: Int,
+    val effectType: String,
+    val missedTimingRisk: Boolean,
+    val spellSpeed: Int? = null,
+    /** Comma-separated TriggerEvent names, e.g. "DESTROYED,TO_GRAVE". Empty if none. */
+    val triggerEventsCsv: String = "",
+)
+
 @Entity(tableName = "card_relations", primaryKeys = ["sourceId", "targetId", "relation"])
 data class CardRelationEntity(
     val sourceId: Int,
@@ -208,6 +218,21 @@ interface CardDao {
     @Query("SELECT * FROM effect_scripts WHERE cardId IN (:ids)")
     suspend fun effectScripts(ids: List<Int>): List<EffectScriptEntity>
 
+    @Query("DELETE FROM segoc_profiles")
+    suspend fun clearSegocProfiles()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSegocProfiles(rows: List<SegocProfileEntity>)
+
+    @Query("SELECT COUNT(*) FROM segoc_profiles")
+    suspend fun segocProfileCount(): Int
+
+    @Query("SELECT * FROM segoc_profiles WHERE cardId = :id LIMIT 1")
+    suspend fun segocProfile(id: Int): SegocProfileEntity?
+
+    @Query("SELECT * FROM segoc_profiles WHERE cardId IN (:ids)")
+    suspend fun segocProfiles(ids: List<Int>): List<SegocProfileEntity>
+
     @Query("DELETE FROM card_relations")
     suspend fun clearCardRelations()
 
@@ -294,8 +319,9 @@ interface CardDao {
         EffectScriptEntity::class,
         CardRelationEntity::class,
         SyncMetaEntity::class,
+        SegocProfileEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class CardDatabase : RoomDatabase() {
@@ -473,6 +499,17 @@ internal fun CardEntity.toModel() =
 
 internal fun Card.toEntity() =
     CardEntity(id, name, type, race, attribute, attack, defense, level, description, year)
+
+private fun SegocProfileEntity.toSummary() = com.ygochecker.core.model.SegocProfileSummary(
+    cardId = cardId,
+    effectType = com.ygochecker.core.model.SegocEffectType.valueOf(effectType),
+    spellSpeed = spellSpeed,
+    missedTimingRisk = missedTimingRisk,
+    triggerEvents = triggerEventsCsv.split(',')
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .map(com.ygochecker.core.model.TriggerEvent::valueOf),
+)
 
 private val seed = listOf(
     CardEntity(89631139, "Blue-Eyes White Dragon", "Normal Monster", "Dragon", "LIGHT", 3000, 2500, 8, "This legendary dragon is a powerful engine of destruction.", 2002),
