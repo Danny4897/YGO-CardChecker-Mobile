@@ -14,3 +14,6 @@ android/verify-*.png
 # Local build noise
 android-*.log
 android-overlay-test.log
+
+# Brainstorming visual companion sessions
+.superpowers/
