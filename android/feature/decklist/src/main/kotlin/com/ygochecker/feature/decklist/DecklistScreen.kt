@@ -94,6 +94,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import coil3.size.Size
 import com.ygochecker.core.common.AppResult
+import com.ygochecker.core.designsystem.AttributeBadge
 import com.ygochecker.core.designsystem.CardDetailSheet
 import com.ygochecker.core.designsystem.CardDetailState
 import com.ygochecker.core.designsystem.CollectionPickOption
@@ -1068,12 +1069,15 @@ private fun EditorCardRow(
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(item.card.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(
-                    item.card.type,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    AttributeBadge(item.card.attribute, compact = true)
+                    Text(
+                        item.card.type,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
                 StatusChip(
                     label = if (overLimit) {
                         stringResource(DesignR.string.legality_over_limit, format.id.uppercase(), maximum)
