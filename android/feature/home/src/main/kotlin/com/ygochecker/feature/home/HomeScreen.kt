@@ -1,12 +1,16 @@
 package com.ygochecker.feature.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -25,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,6 +37,7 @@ import androidx.lifecycle.viewModelScope
 import com.ygochecker.core.designsystem.AlertBell
 import com.ygochecker.core.designsystem.DuelInsets
 import com.ygochecker.core.designsystem.DuelSpacing
+import com.ygochecker.core.designsystem.duelExtendedColors
 import com.ygochecker.core.designsystem.EmptyState
 import com.ygochecker.core.designsystem.R as DesignR
 import com.ygochecker.core.designsystem.StatusChip
@@ -72,8 +78,8 @@ class HomeViewModel @Inject constructor(
 
 /**
  * Landing dashboard: unread alerts, the most recently edited deck's legality at a glance,
- * and shortcuts into Search/Decks/Flow. Replaces Overlay as the fourth primary tab — Overlay
- * is a power-user MDPRO companion, not something every duelist needs on first open.
+ * and shortcuts into Decks/Flow/Search. First of 5 primary tabs — Settings/Overlay are
+ * reached from the gear icon in the top bar instead (see LocalOpenSettings).
  */
 @Composable
 fun HomeRoute(
@@ -111,6 +117,12 @@ fun HomeRoute(
                 )
             }
             ShortcutRow(
+                icon = Icons.Default.Style,
+                title = stringResource(DesignR.string.nav_decks),
+                subtitle = stringResource(DesignR.string.home_last_deck),
+                onClick = onOpenDecks,
+            )
+            ShortcutRow(
                 icon = Icons.Default.AccountTree,
                 title = stringResource(DesignR.string.home_flow_title),
                 subtitle = stringResource(DesignR.string.home_flow_subtitle),
@@ -128,28 +140,41 @@ fun HomeRoute(
 
 @Composable
 private fun LastDeckCard(deck: Decklist, legality: DeckLegality?, onClick: () -> Unit) {
+    val accentColor = when (legality?.isLegal) {
+        true -> MaterialTheme.duelExtendedColors.success
+        false -> MaterialTheme.colorScheme.error
+        null -> MaterialTheme.colorScheme.primary
+    }
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
     ) {
-        Column(Modifier.padding(DuelSpacing.space4)) {
-            Text(
-                stringResource(DesignR.string.home_last_deck),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(Modifier.fillMaxWidth()) {
+            Box(
+                Modifier
+                    .width(3.dp)
+                    .fillMaxHeight()
+                    .background(accentColor),
             )
-            Text(deck.name, style = MaterialTheme.typography.titleMedium)
-            if (legality != null) {
-                StatusChip(
-                    label = if (legality.isLegal) {
-                        stringResource(DesignR.string.home_deck_legal)
-                    } else {
-                        stringResource(DesignR.string.home_deck_illegal)
-                    },
-                    tone = if (legality.isLegal) StatusTone.Success else StatusTone.Error,
-                    modifier = Modifier.padding(top = DuelSpacing.space2),
+            Column(Modifier.padding(DuelSpacing.space4)) {
+                Text(
+                    stringResource(DesignR.string.home_last_deck),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Text(deck.name, style = MaterialTheme.typography.titleMedium)
+                if (legality != null) {
+                    StatusChip(
+                        label = if (legality.isLegal) {
+                            stringResource(DesignR.string.home_deck_legal)
+                        } else {
+                            stringResource(DesignR.string.home_deck_illegal)
+                        },
+                        tone = if (legality.isLegal) StatusTone.Success else StatusTone.Error,
+                        modifier = Modifier.padding(top = DuelSpacing.space2),
+                    )
+                }
             }
         }
     }
