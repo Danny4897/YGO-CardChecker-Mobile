@@ -59,6 +59,16 @@
     <string name="overlay_hud_permissions_ready">Overlay permission granted. You can start the HUD.</string>
     <string name="flow_title">Flow</string>
     <string name="flow_subtitle">Deck role coverage today — hand combo lines &amp; in-game assist come next.</string>
+    <string name="flow_coach_title">Flow</string>
+    <string name="flow_coach_subtitle">Timing coach for your active deck</string>
+    <string name="flow_coach_empty_title">No active deck</string>
+    <string name="flow_coach_empty_body">Open or edit a deck to see its timing coach here.</string>
+    <string name="flow_coach_cards_section_title">Cards in this deck</string>
+    <string name="flow_segoc_section_title">Simultaneous triggers</string>
+    <string name="flow_segoc_rule_text">If these trigger together: order YOUR triggers first (you choose the order) — they go on the chain first. Then your opponent orders theirs — those go on after. The chain resolves last-in-first-out, so whichever went on last resolves first.</string>
+    <string name="flow_segoc_generic_note">Usually worth resolving the effect that gives you more information or choice last, so you decide with more data.</string>
+    <string name="flow_open_catalog">Browse curated HAT flows</string>
+    <string name="flow_back_to_coach">Back to coach</string>
     <string name="flow_pick_deck">Choose a deck</string>
     <string name="flow_empty_deck">Open or import a deck first.</string>
     <string name="flow_starters">Starters</string>

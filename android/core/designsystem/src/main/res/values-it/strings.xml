@@ -59,6 +59,16 @@
     <string name="overlay_hud_permissions_ready">Permesso overlay concesso. Puoi avviare l’HUD.</string>
     <string name="flow_title">Flow</string>
     <string name="flow_subtitle">Oggi: copertura ruoli del mazzo — linee combo a mano e assist in-game arrivano dopo.</string>
+    <string name="flow_coach_title">Flow</string>
+    <string name="flow_coach_subtitle">Coach sui timing del tuo mazzo attivo</string>
+    <string name="flow_coach_empty_title">Nessun mazzo attivo</string>
+    <string name="flow_coach_empty_body">Apri o modifica un mazzo per vedere qui il suo coach sui timing.</string>
+    <string name="flow_coach_cards_section_title">Carte in questo mazzo</string>
+    <string name="flow_segoc_section_title">Trigger simultanei</string>
+    <string name="flow_segoc_rule_text">Se questi si attivano insieme: tra i TUOI trigger scegli tu l\'ordine — vanno in chain per primi. Poi l\'avversario sceglie l\'ordine dei suoi — vanno dopo. La chain risolve a ritroso: quindi gli ultimi messi in chain si risolvono per primi.</string>
+    <string name="flow_segoc_generic_note">Conviene di solito risolvere per ultimo l\'effetto che ti dà più informazione o scelta, per decidere con più dati.</string>
+    <string name="flow_open_catalog">Sfoglia i flow HAT curati</string>
+    <string name="flow_back_to_coach">Torna al coach</string>
     <string name="flow_pick_deck">Scegli un mazzo</string>
     <string name="flow_empty_deck">Apri o importa prima un mazzo.</string>
     <string name="flow_starters">Starter</string>

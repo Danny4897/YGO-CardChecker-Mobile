@@ -42,8 +42,10 @@ import com.ygochecker.core.designsystem.StatusChip
 import com.ygochecker.core.designsystem.StatusTone
 import com.ygochecker.core.designsystem.ThemedScreenHeader
 import com.ygochecker.core.domain.DeckFlowLinkRepository
+import com.ygochecker.core.domain.FindSimultaneousTriggers
 import com.ygochecker.core.domain.FormatPreference
 import com.ygochecker.core.domain.GetFlow
+import com.ygochecker.core.domain.GetSegocProfiles
 import com.ygochecker.core.domain.ListDecklists
 import com.ygochecker.core.domain.ListFlows
 import com.ygochecker.core.model.FlowEdge
@@ -52,6 +54,8 @@ import com.ygochecker.core.model.FlowKind
 import com.ygochecker.core.model.FlowRehearsalEngine
 import com.ygochecker.core.model.FlowSummary
 import com.ygochecker.core.model.GameFormat
+import com.ygochecker.core.model.SegocProfileSummary
+import com.ygochecker.core.model.SimultaneousTriggerPair
 import com.ygochecker.core.model.TimingAnswer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -66,6 +70,8 @@ class FlowViewModel @Inject constructor(
     private val listFlows: ListFlows,
     private val getFlow: GetFlow,
     private val flowLinks: DeckFlowLinkRepository,
+    private val getSegocProfiles: GetSegocProfiles,
+    private val findSimultaneousTriggers: FindSimultaneousTriggers,
 ) : ViewModel() {
     val format = formatPreference.values.stateIn(
         viewModelScope,
@@ -94,6 +100,38 @@ class FlowViewModel @Inject constructor(
         private set
     var kindFilter by mutableStateOf<FlowKind?>(null)
         private set
+    var activeDeckId by mutableStateOf<Long?>(null)
+        private set
+    var segocByCardId by mutableStateOf<Map<Int, SegocProfileSummary>>(emptyMap())
+        private set
+    var simultaneousPairs by mutableStateOf<List<SimultaneousTriggerPair>>(emptyList())
+        private set
+    var showCatalog by mutableStateOf(false)
+        private set
+    var coachLoading by mutableStateOf(false)
+        private set
+
+    fun toggleCatalog() {
+        showCatalog = !showCatalog
+    }
+
+    fun loadCoachForActiveDeck() {
+        val deckId = decks.value.maxByOrNull { it.updatedAt }?.id
+        activeDeckId = deckId
+        if (deckId == null) {
+            segocByCardId = emptyMap()
+            simultaneousPairs = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            coachLoading = true
+            val deck = decks.value.first { it.id == deckId }
+            val cardIds = deck.cards.map { it.card.id }.distinct()
+            segocByCardId = getSegocProfiles.invoke(cardIds).associateBy { it.cardId }
+            simultaneousPairs = findSimultaneousTriggers.invoke(deckId)
+            coachLoading = false
+        }
+    }
 
     fun refresh(format: GameFormat) {
         viewModelScope.launch {
@@ -178,11 +216,12 @@ fun FlowRoute(vm: FlowViewModel = hiltViewModel()) {
     val format by vm.format.collectAsStateWithLifecycle()
     val decks by vm.decks.collectAsStateWithLifecycle()
     LaunchedEffect(format, decks) { vm.refresh(format) }
+    LaunchedEffect(decks) { vm.loadCoachForActiveDeck() }
 
     val graph = vm.activeGraph
     val eng = vm.engine
-    if (graph != null && eng != null) {
-        FlowRehearsalScreen(
+    when {
+        graph != null && eng != null -> FlowRehearsalScreen(
             graph = graph,
             engine = eng,
             timingError = vm.timingError,
@@ -192,8 +231,7 @@ fun FlowRoute(vm: FlowViewModel = hiltViewModel()) {
             onAdvanceFailTiming = { vm.advanceDefault(2) },
             onChoose = { edge -> vm.choose(edge, 1) },
         )
-    } else {
-        FlowCatalogScreen(
+        vm.showCatalog -> FlowCatalogScreen(
             format = format,
             loading = vm.loading,
             summaries = vm.filteredSummaries(),
@@ -204,7 +242,135 @@ fun FlowRoute(vm: FlowViewModel = hiltViewModel()) {
             onKindFilter = vm::toggleKindFilter,
             onFocusDeck = vm::focusDeck,
             onOpen = vm::openFlow,
+            onBackToCoach = vm::toggleCatalog,
         )
+        else -> {
+            val activeDeck = decks.firstOrNull { it.id == vm.activeDeckId }
+            FlowCoachScreen(
+                deck = activeDeck,
+                loading = vm.coachLoading,
+                segocByCardId = vm.segocByCardId,
+                simultaneousPairs = vm.simultaneousPairs,
+                onOpenCatalog = vm::toggleCatalog,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FlowCoachScreen(
+    deck: com.ygochecker.core.model.Decklist?,
+    loading: Boolean,
+    segocByCardId: Map<Int, SegocProfileSummary>,
+    simultaneousPairs: List<SimultaneousTriggerPair>,
+    onOpenCatalog: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        ThemedScreenHeader(
+            title = stringResource(DesignR.string.flow_coach_title),
+            subtitle = stringResource(DesignR.string.flow_coach_subtitle),
+        )
+        when {
+            deck == null -> EmptyState(
+                icon = Icons.Default.AccountTree,
+                title = stringResource(DesignR.string.flow_coach_empty_title),
+                body = stringResource(DesignR.string.flow_coach_empty_body),
+                modifier = Modifier.weight(1f).padding(DuelSpacing.space4),
+            )
+            loading -> Text(
+                text = stringResource(DesignR.string.flow_loading),
+                modifier = Modifier.padding(DuelSpacing.space4),
+            )
+            else -> LazyColumn(
+                contentPadding = PaddingValues(DuelSpacing.space4),
+                verticalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+                modifier = Modifier.weight(1f),
+            ) {
+                if (simultaneousPairs.isNotEmpty()) {
+                    item(key = "segoc-header") {
+                        Text(
+                            text = stringResource(DesignR.string.flow_segoc_section_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    items(simultaneousPairs, key = { "${it.cardAId}-${it.cardBId}-${it.sharedEvent}" }) { pair ->
+                        SegocWarningCard(pair, deck)
+                    }
+                }
+                item(key = "cards-header") {
+                    Text(
+                        text = stringResource(DesignR.string.flow_coach_cards_section_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                items(deck.cards, key = { it.card.id }) { deckCard ->
+                    FlowCoachCardRow(deckCard.card, segocByCardId[deckCard.card.id])
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(DuelSpacing.space4)) {
+            OutlinedButton(onClick = onOpenCatalog, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(DesignR.string.flow_open_catalog))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SegocWarningCard(pair: SimultaneousTriggerPair, deck: com.ygochecker.core.model.Decklist) {
+    val nameA = deck.cards.firstOrNull { it.card.id == pair.cardAId }?.card?.name ?: pair.cardAId.toString()
+    val nameB = deck.cards.firstOrNull { it.card.id == pair.cardBId }?.card?.name ?: pair.cardBId.toString()
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(DuelSpacing.space4), verticalArrangement = Arrangement.spacedBy(DuelSpacing.space2)) {
+            Text("$nameA + $nameB", style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = stringResource(DesignR.string.flow_segoc_rule_text),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = segocTacticalNote(pair.sharedEvent),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun segocTacticalNote(event: com.ygochecker.core.model.TriggerEvent): String =
+    stringResource(DesignR.string.flow_segoc_generic_note)
+
+@Composable
+private fun FlowCoachCardRow(
+    card: com.ygochecker.core.model.Card,
+    segoc: SegocProfileSummary?,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(DuelSpacing.space3),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+        ) {
+            Text(card.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            if (segoc != null) {
+                val speedLabel = segoc.spellSpeed?.let { "SP$it " }.orEmpty()
+                StatusChip(
+                    label = "$speedLabel${segoc.effectType.name}",
+                    tone = if (segoc.missedTimingRisk) StatusTone.Warning else StatusTone.Neutral,
+                )
+            }
+        }
     }
 }
 
@@ -221,8 +387,18 @@ private fun FlowCatalogScreen(
     onKindFilter: (FlowKind?) -> Unit,
     onFocusDeck: (Long?) -> Unit,
     onOpen: (String) -> Unit,
+    onBackToCoach: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = DuelSpacing.space4, vertical = DuelSpacing.space2),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBackToCoach) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+            }
+            Text(stringResource(DesignR.string.flow_back_to_coach), style = MaterialTheme.typography.labelLarge)
+        }
         ThemedScreenHeader(
             title = stringResource(DesignR.string.flow_title),
             subtitle = stringResource(DesignR.string.flow_subtitle),
