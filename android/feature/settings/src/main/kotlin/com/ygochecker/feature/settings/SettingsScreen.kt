@@ -42,6 +42,7 @@ import com.ygochecker.core.designsystem.DuelSpacing
 import com.ygochecker.core.designsystem.R as DesignR
 import com.ygochecker.core.designsystem.ThemedScreenHeader
 import com.ygochecker.core.designsystem.SettingsGroup
+import com.ygochecker.core.designsystem.errorMessage
 import com.ygochecker.core.domain.FormatPreference
 import com.ygochecker.core.domain.LanguagePreference
 import com.ygochecker.core.domain.ObserveOfflinePack
@@ -51,6 +52,7 @@ import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.core.model.CatalogSyncProgress
 import com.ygochecker.core.model.GameFormat
 import com.ygochecker.core.model.OfflinePackStatus
+import com.ygochecker.core.model.SocialAuthState
 import com.ygochecker.core.model.SyncPhase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,7 +76,11 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
     val format = formats.values.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GameFormat.TCG)
     val language = languages.values.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppLanguage.ENGLISH)
-    val socialApiUrl = social.observeApiUrl().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+    val authState = social.observeAuthState().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SocialAuthState.SIGNED_OUT)
+    private val _magicLinkSent = MutableStateFlow(false)
+    val magicLinkSent = _magicLinkSent.asStateFlow()
+    private val _accountNotice = MutableStateFlow<String?>(null)
+    val accountNotice = _accountNotice.asStateFlow()
     val packStatus = observePack.status().stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -85,10 +91,18 @@ class SettingsViewModel @Inject constructor(
     val notice = _notice.asStateFlow()
 
     fun setFormat(value: GameFormat) = viewModelScope.launch { formats.set(value) }
-    fun setSocialApiUrl(url: String) = viewModelScope.launch { social.setApiUrl(url) }
     fun setLanguage(value: AppLanguage) = viewModelScope.launch { languages.set(value) }
     fun clearNotice() { _notice.value = null }
     fun clearStuckProgress() = observePack.clearProgress()
+
+    fun sendMagicLink(email: String) = viewModelScope.launch {
+        _accountNotice.value = null
+        _magicLinkSent.value = false
+        when (val r = social.sendMagicLink(email)) {
+            is AppResult.Ok -> _magicLinkSent.value = true
+            is AppResult.Err -> _accountNotice.value = r.error.errorKey
+        }
+    }
 
     fun downloadAll() = runSync { syncAll.invoke() }
 
@@ -176,29 +190,54 @@ fun SettingsRoute(
             )
         }
 
-        val socialUrl by vm.socialApiUrl.collectAsStateWithLifecycle()
-        var socialDraft by remember(socialUrl) { mutableStateOf(socialUrl) }
+        val authState by vm.authState.collectAsStateWithLifecycle()
+        val magicLinkSent by vm.magicLinkSent.collectAsStateWithLifecycle()
+        val accountNotice by vm.accountNotice.collectAsStateWithLifecycle()
+        var emailDraft by remember { mutableStateOf("") }
         SettingsGroup(
-            title = stringResource(DesignR.string.settings_social),
+            title = stringResource(DesignR.string.settings_account),
             modifier = Modifier.padding(top = DuelSpacing.space5),
         ) {
-            Text(
-                stringResource(DesignR.string.settings_social_url_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedTextField(
-                value = socialDraft,
-                onValueChange = { socialDraft = it },
-                label = { Text(stringResource(DesignR.string.settings_social_url)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Button(
-                onClick = { vm.setSocialApiUrl(socialDraft) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            ) {
-                Text(stringResource(DesignR.string.settings_social_save))
+            when (authState) {
+                SocialAuthState.EMAIL_LINKED -> Text(
+                    stringResource(DesignR.string.settings_account_linked),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                else -> {
+                    Text(
+                        stringResource(DesignR.string.settings_account_anonymous_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedTextField(
+                        value = emailDraft,
+                        onValueChange = { emailDraft = it },
+                        label = { Text(stringResource(DesignR.string.settings_account_email_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Button(
+                        onClick = { vm.sendMagicLink(emailDraft) },
+                        enabled = emailDraft.contains("@"),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) {
+                        Text(stringResource(DesignR.string.settings_account_send_link))
+                    }
+                    if (magicLinkSent) {
+                        Text(
+                            stringResource(DesignR.string.settings_account_link_sent),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    accountNotice?.let { key ->
+                        Text(
+                            errorMessage(key),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             }
         }
 

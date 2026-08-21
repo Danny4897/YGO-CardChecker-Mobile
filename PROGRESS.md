@@ -4,13 +4,27 @@
 
 - `refactor/android-native`: **Flow redesign** — attuale motore nascosto dietro Coming Soon
 - **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
-- **Cloud sync** profilo/amici/mazzi/replay keyed by Discord/Google subject (android/backend/README.md
-Profile as friend landing; public decks + world chat + DMs.
+- **Navigazione reale** — MainActivity usa ancora `when(section)` a mano, niente back-stack (prossimo: NavHost)
+- **Nuove feature DB-powered** — lista spesa mazzo↔collezione, meta snapshot mazzi pubblici, alert banlist
+  schedulati (schema `user_alerts`/`banlist_snapshots` già pronto lato Supabase, non ancora popolato)
+- OAuth Discord/Google reale via Supabase Auth (oggi PKCE locale con client secret nell'app — noto problema
+  di sicurezza, rimandato: richiede che l'utente crei le app OAuth e configuri i redirect URL lui stesso)
 
 ## Done
 
-- 2026-08-16: **v0.3.3** � fix click mazzi pubblici ? thread
-- 2026-08-16: **v0.3.2** � fix ricerca utenti (sessione + feedback)
+- 2026-08-21: **Social backend → Supabase** — sostituito il server Node/SQLite (PC + tunnel Cloudflare, mai
+  affidabile oltre il beta personale) con un progetto Supabase gestito (Postgres + Auth + Realtime, RLS su
+  tutte le tabelle, advisor di sicurezza pulito). Nuovo modulo `data:social`
+  (`io.github.jan-tennert.supabase` 3.2.6) sostituisce `HttpSocialRepository`; stesse firme per
+  Profile/Decklist/Settings, nessuna UI toccata oltre a Settings (URL backend testuale → sezione Account con
+  magic-link email, dato che l'identità non era più recuperabile su reinstall). Verifica: schema/RLS testati
+  via MCP Supabase; **build/test Kotlin non eseguibile in questo sandbox** — `dl.google.com` (repo Maven di
+  AGP) è bloccato dal proxy di rete, quindi zero compilazione verificata, nemmeno sui moduli JVM puri. Passi
+  manuali richiesti prima del primo run: abilitare "Anonymous sign-ins" e aggiungere
+  `ygochecker://oauth/magiclink` ai redirect URL in Authentication → dashboard Supabase (nessun tool MCP
+  per farlo). Vedi `android/README.md`.
+- 2026-08-16: **v0.3.3** � fix click mazzi pubblici ? thread
+- 2026-08-16: **v0.3.2** � fix ricerca utenti (sessione + feedback)
 - 2026-08-16: **Verifier** — Android `gradlew test` PASS (JBR 21); :app / :core:* / :data:* OK; no failures
 - 2026-08-16: **v0.2.9** — feed aggiornamenti su jsDelivr (fix cache raw GitHub ~5 min)
 - 2026-08-16: **v0.2.8** — update check: cache-bust feed + manual ripropone skip; bump per chi aveva “Più tardi” su 0.2.7

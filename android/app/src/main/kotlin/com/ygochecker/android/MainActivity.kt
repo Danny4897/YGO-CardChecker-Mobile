@@ -80,6 +80,11 @@ import com.ygochecker.feature.search.SearchRoute
 import com.ygochecker.feature.settings.SettingsRoute
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -99,6 +104,8 @@ private class LocaleAwareContext(
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject lateinit var accountLinker: AccountLinker
+    @Inject lateinit var supabaseClient: SupabaseClient
+    private val authDeepLinkScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -116,7 +123,21 @@ class MainActivity : ComponentActivity() {
     private fun handleOAuthIntent(intent: Intent?) {
         val data: Uri = intent?.data ?: return
         if (data.scheme != "ygochecker" || data.host != "oauth") return
+        if (data.lastPathSegment?.lowercase() == "magiclink") {
+            handleMagicLinkRedirect(data)
+            return
+        }
         accountLinker.handleRedirect(data)
+    }
+
+    /** Completes the Supabase email magic-link sign-in started from Settings. */
+    private fun handleMagicLinkRedirect(uri: Uri) {
+        authDeepLinkScope.launch {
+            runCatching {
+                val session = supabaseClient.auth.parseSessionFromUrl(uri.toString())
+                supabaseClient.auth.importSession(session)
+            }
+        }
     }
 }
 

@@ -5,12 +5,18 @@ import androidx.room.Room
 import com.ygochecker.core.domain.*
 import com.ygochecker.data.cards.*
 import com.ygochecker.data.deck.*
+import com.ygochecker.data.social.SupabaseSocialRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.realtime.Realtime
 import okhttp3.OkHttpClient
 import javax.inject.Named
 import javax.inject.Singleton
@@ -20,7 +26,7 @@ abstract class DependencyModule {
     @Binds abstract fun cardRepository(value: RoomCardRepository): CardRepository
     @Binds abstract fun deckRepository(value: RoomDeckRepository): DeckRepository
     @Binds abstract fun profileRepository(value: RoomProfileRepository): ProfileRepository
-    @Binds abstract fun socialRepository(value: HttpSocialRepository): SocialRepository
+    @Binds abstract fun socialRepository(value: SupabaseSocialRepository): SocialRepository
     @Binds abstract fun preferenceRepository(value: DataStorePreferenceRepository): PreferenceRepository
     @Binds abstract fun offlinePack(value: RoomOfflinePackRepository): OfflinePackRepository
     @Binds abstract fun searchCards(value: DefaultSearchCards): SearchCards
@@ -63,8 +69,16 @@ abstract class DependencyModule {
 
     companion object {
         @Provides @Singleton fun okHttpClient(): OkHttpClient = YgoProDeckClient.defaultHttpClient()
-        @Provides @Singleton @Named("socialApiBaseUrl")
-        fun socialApiBaseUrl(): String = BuildConfig.SOCIAL_API_URL.trim()
+        @Provides @Singleton @Named("supabaseUrl")
+        fun supabaseUrl(): String = BuildConfig.SUPABASE_URL.trim()
+        @Provides @Singleton fun supabaseClient(): SupabaseClient = createSupabaseClient(
+            supabaseUrl = BuildConfig.SUPABASE_URL.trim(),
+            supabaseKey = BuildConfig.SUPABASE_ANON_KEY.trim(),
+        ) {
+            install(Auth)
+            install(Postgrest)
+            install(Realtime)
+        }
         @Provides @Singleton fun cardDatabase(@ApplicationContext context: Context): CardDatabase =
             Room.databaseBuilder(context, CardDatabase::class.java, "cards.db")
                 .fallbackToDestructiveMigration()

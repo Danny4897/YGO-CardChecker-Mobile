@@ -191,6 +191,27 @@ data class CardCollection(
     val cardIds: List<Int> = emptyList(),
 )
 
+/** Supabase Auth session state backing [SocialRepository]. */
+enum class SocialAuthState { SIGNED_OUT, ANONYMOUS, EMAIL_LINKED }
+
+/** A friend's shared card collection (cloud id — distinct from the local Room [CardCollection.id]). */
+data class SocialCollection(
+    val id: String,
+    val name: String,
+    val cardIds: List<Int> = emptyList(),
+)
+
+enum class SocialAlertKind { BANLIST_CHANGE, FRIEND_REQUEST, DM, DECK_MESSAGE }
+
+/** Realtime notification row (`user_alerts`) — friend requests, DMs, deck chat, banlist changes. */
+data class SocialAlert(
+    val id: Long,
+    val kind: SocialAlertKind,
+    val payload: Map<String, String> = emptyMap(),
+    val createdAt: Long,
+    val read: Boolean = false,
+)
+
 /** Local duel replay notes for future AI deck training. */
 data class ReplayEntry(
     val id: Long,

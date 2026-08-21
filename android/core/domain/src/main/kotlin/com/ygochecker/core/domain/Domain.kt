@@ -69,10 +69,14 @@ interface ProfileRepository {
     suspend fun removeReplay(id: Long)
 }
 
-/** Remote social API (SQLite micro-backend). Empty base URL → offline / disabled. */
+/**
+ * Social backend (Supabase: Postgres + Auth + Realtime).
+ * [observeApiUrl] now reports whether the backend is reachable/configured at all —
+ * with a fixed hosted project this is effectively always true, kept only so callers
+ * written against "is social available" keep working unchanged.
+ */
 interface SocialRepository {
     fun observeApiUrl(): Flow<String>
-    suspend fun setApiUrl(url: String)
     suspend fun ensureSession(username: String, avatarCardId: Int?): AppResult<SocialUser>
     suspend fun refreshMe(): AppResult<SocialUser>
     suspend fun updateMe(username: String, avatarCardId: Int?): AppResult<SocialUser>
@@ -91,6 +95,19 @@ interface SocialRepository {
     suspend fun postDeckMessage(deckId: String, body: String, lang: String): AppResult<SocialChatMessage>
     suspend fun listDm(peerUserId: String): AppResult<List<SocialDmMessage>>
     suspend fun postDm(peerUserId: String, body: String): AppResult<SocialDmMessage>
+
+    /** SIGNED_OUT until [ensureSession] runs at least once this process. */
+    fun observeAuthState(): Flow<SocialAuthState>
+
+    /** Upgrades the anonymous session to a recoverable one: emails a magic sign-in link. */
+    suspend fun sendMagicLink(email: String): AppResult<Unit>
+
+    /** Unread-first, newest-first; updates live while collected (Realtime). */
+    fun observeAlerts(): Flow<List<SocialAlert>>
+    suspend fun markAlertsRead(ids: List<Long>)
+
+    /** Cards a friend has chosen to share (RLS: only visible between accepted friends). */
+    fun observeFriendCollections(peerUserId: String): Flow<List<SocialCollection>>
 }
 
 interface PreferenceRepository {

@@ -38,6 +38,8 @@ fun errorStringResource(errorKey: String): Int = when (errorKey) {
     "social.deck_not_found" -> R.string.error_social_deck_not_found
     "social.username_invalid" -> R.string.error_social_username_invalid
     "social.search_short" -> R.string.profile_search_short
+    "social.auth_failed" -> R.string.error_social_auth_failed
+    "social.duplicate" -> R.string.error_social_duplicate
     else -> R.string.error_unknown
 }
 

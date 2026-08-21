@@ -36,11 +36,19 @@ android {
                 "https://cdn.jsdelivr.net/gh/Danny4897/YGO-CardChecker-Mobile@latest/android/distribution/update.json",
             )}\"",
         )
-        // Social micro-API (SQLite backend). Empty → social UI shows offline hint.
+        // Supabase project (social backend). See android/README.md for setup.
         buildConfigField(
             "String",
-            "SOCIAL_API_URL",
-            "\"${propertyOrDefault("SOCIAL_API_URL", "")}\"",
+            "SUPABASE_URL",
+            "\"${propertyOrDefault("SUPABASE_URL", "https://ubflewrwtpbrbkjdohfx.supabase.co")}\"",
+        )
+        buildConfigField(
+            "String",
+            "SUPABASE_ANON_KEY",
+            "\"${propertyOrDefault(
+                "SUPABASE_ANON_KEY",
+                "sb_publishable_AZ_4OeVom8-iq7xFuaFydA_RyumSzFu",
+            )}\"",
         )
     }
     compileOptions {
@@ -67,6 +75,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":data:cards"))
     implementation(project(":data:deck"))
+    implementation(project(":data:social"))
     implementation(project(":feature:search"))
     implementation(project(":feature:decklist"))
     implementation(project(":feature:settings"))
