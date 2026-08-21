@@ -2,16 +2,23 @@
 
 ## Open
 
-- `refactor/android-native`: **Flow redesign** — attuale motore nascosto dietro Coming Soon
 - **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
-- **Navigazione reale** — MainActivity usa ancora `when(section)` a mano, niente back-stack (prossimo: NavHost)
 - **Nuove feature DB-powered** — lista spesa mazzo↔collezione, meta snapshot mazzi pubblici, alert banlist
   schedulati (schema `user_alerts`/`banlist_snapshots` già pronto lato Supabase, non ancora popolato)
 - OAuth Discord/Google reale via Supabase Auth (oggi PKCE locale con client secret nell'app — noto problema
   di sicurezza, rimandato: richiede che l'utente crei le app OAuth e configuri i redirect URL lui stesso)
+- **Build/test Kotlin non verificato in nessuna sessione recente** — sandbox con `dl.google.com` bloccato;
+  serve un `./gradlew clean testDebugUnitTest lintDebug :app:assembleDebug` locale prima di fidarsi al 100%
+  dei commit 698814c..8711a8e (branch `claude/app-improvements-ux-xzo4yw`)
 
 ## Done
 
+- 2026-08-21: **Reimagining pass** (branch `claude/app-improvements-ux-xzo4yw`, commit 698814c..8711a8e) —
+  navigazione reale con back-stack (BackHandler in MainActivity + ProfileRoute, Overlay spostato nel drawer),
+  nuova tab **Home** (`feature:home`, dashboard con AlertBell/legalità ultimo mazzo/scorciatoie), **Flow
+  spedito** (rimosso il gate Coming Soon, il motore hand-test + analizzatore ruoli era già completo), range
+  ATK/DEF reale in Search, ricerca/ordinamento nella lista mazzi, editor profilo su ModalBottomSheet a piena
+  altezza invece di un AlertDialog compresso. Vedi il commit sopra per il dettaglio backend Supabase.
 - 2026-08-21: **Social backend → Supabase** — sostituito il server Node/SQLite (PC + tunnel Cloudflare, mai
   affidabile oltre il beta personale) con un progetto Supabase gestito (Postgres + Auth + Realtime, RLS su
   tutte le tabelle, advisor di sicurezza pulito). Nuovo modulo `data:social`
