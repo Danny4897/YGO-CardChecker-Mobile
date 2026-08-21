@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,16 +38,19 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -1082,6 +1087,7 @@ private fun PublicDeckRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditProfileSheet(vm: ProfileViewModel, onDismiss: () -> Unit) {
     val user by vm.user.collectAsStateWithLifecycle()
@@ -1093,14 +1099,26 @@ private fun EditProfileSheet(vm: ProfileViewModel, onDismiss: () -> Unit) {
     var replayTitle by remember { mutableStateOf("") }
     var replayNote by remember { mutableStateOf("") }
     var expandedCollection by remember { mutableStateOf<Long?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(DesignR.string.profile_edit)) },
-        text = {
+    // Full-height sheet instead of a height-capped AlertDialog — username, avatar,
+    // collections and replays need real room, not a cramped scroll-in-a-dialog.
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.92f)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp),
+        ) {
+            Text(
+                stringResource(DesignR.string.profile_edit),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(vertical = DuelSpacing.space3),
+            )
             Column(
                 Modifier
-                    .heightIn(max = 480.dp)
+                    .weight(1f)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -1169,11 +1187,14 @@ private fun EditProfileSheet(vm: ProfileViewModel, onDismiss: () -> Unit) {
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onDismiss) { Text(stringResource(DesignR.string.action_close)) }
-        },
-    )
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(vertical = DuelSpacing.space2),
+            ) { Text(stringResource(DesignR.string.action_close)) }
+        }
+    }
 
     if (avatarPickerOpen) {
         AlertDialog(

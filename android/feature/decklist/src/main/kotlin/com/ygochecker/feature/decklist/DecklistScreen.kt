@@ -35,7 +35,10 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material3.AlertDialog
@@ -69,6 +72,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -503,6 +507,12 @@ import javax.inject.Inject
     import: () -> Unit,
 ) {
     val newDeck = stringResource(DesignR.string.decks_new)
+    var query by rememberSaveable { mutableStateOf("") }
+    var sortNewestFirst by rememberSaveable { mutableStateOf(true) }
+    val visibleDecks = remember(decks, query, sortNewestFirst) {
+        val filtered = if (query.isBlank()) decks else decks.filter { it.name.contains(query, ignoreCase = true) }
+        if (sortNewestFirst) filtered.sortedByDescending(Decklist::updatedAt) else filtered.sortedBy { it.name.lowercase() }
+    }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.safeDrawing.only(
@@ -539,16 +549,48 @@ import javax.inject.Inject
                     modifier = Modifier.weight(1f),
                 )
             } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(
-                        horizontal = DuelSpacing.space4,
-                        vertical = DuelSpacing.space2,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(DuelSpacing.space2),
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = DuelSpacing.space4, vertical = DuelSpacing.space2),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space2),
                 ) {
-                    items(decks, key = Decklist::id, contentType = { "deck" }) { deck ->
-                        DeckListRow(deck) { select(deck.id) }
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        label = { Text(stringResource(DesignR.string.decks_search_hint)) },
+                    )
+                    val sortDescription = stringResource(DesignR.string.decks_sort_toggle)
+                    IconButton(onClick = { sortNewestFirst = !sortNewestFirst }) {
+                        Icon(
+                            if (sortNewestFirst) Icons.Default.Schedule else Icons.Default.SortByAlpha,
+                            contentDescription = sortDescription,
+                        )
+                    }
+                }
+                if (visibleDecks.isEmpty()) {
+                    EmptyState(
+                        icon = Icons.Default.Search,
+                        title = stringResource(DesignR.string.decks_search_empty_title),
+                        body = stringResource(DesignR.string.decks_search_empty_body),
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(
+                            horizontal = DuelSpacing.space4,
+                            vertical = DuelSpacing.space2,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(DuelSpacing.space2),
+                    ) {
+                        items(visibleDecks, key = Decklist::id, contentType = { "deck" }) { deck ->
+                            DeckListRow(deck) { select(deck.id) }
+                        }
                     }
                 }
             }

@@ -628,29 +628,23 @@ private fun SearchFiltersBar(
             }
         }
         FilterSection(stringResource(DesignR.string.search_filter_section_atk)) {
-            StatExactField(
-                label = stringResource(DesignR.string.search_filter_atk_exact),
-                value = filters.atkMin?.takeIf { it == filters.atkMax }?.toString().orEmpty(),
-                onValueChange = { raw ->
-                    onChange { f ->
-                        val n = raw.filter(Char::isDigit).toIntOrNull()
-                        if (n == null) f.copy(atkMin = null, atkMax = null)
-                        else f.copy(atkMin = n, atkMax = n)
-                    }
-                },
+            StatRangeFields(
+                minLabel = stringResource(DesignR.string.search_filter_atk_min),
+                maxLabel = stringResource(DesignR.string.search_filter_atk_max),
+                min = filters.atkMin,
+                max = filters.atkMax,
+                onMinChange = { n -> onChange { f -> f.copy(atkMin = n) } },
+                onMaxChange = { n -> onChange { f -> f.copy(atkMax = n) } },
             )
         }
         FilterSection(stringResource(DesignR.string.search_filter_section_def)) {
-            StatExactField(
-                label = stringResource(DesignR.string.search_filter_def_exact),
-                value = filters.defMin?.takeIf { it == filters.defMax }?.toString().orEmpty(),
-                onValueChange = { raw ->
-                    onChange { f ->
-                        val n = raw.filter(Char::isDigit).toIntOrNull()
-                        if (n == null) f.copy(defMin = null, defMax = null)
-                        else f.copy(defMin = n, defMax = n)
-                    }
-                },
+            StatRangeFields(
+                minLabel = stringResource(DesignR.string.search_filter_def_min),
+                maxLabel = stringResource(DesignR.string.search_filter_def_max),
+                min = filters.defMin,
+                max = filters.defMax,
+                onMinChange = { n -> onChange { f -> f.copy(defMin = n) } },
+                onMaxChange = { n -> onChange { f -> f.copy(defMax = n) } },
             )
         }
         Text(
@@ -772,18 +766,33 @@ private fun typeChip(
 }
 
 @Composable
-private fun StatExactField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
+private fun StatRangeFields(
+    minLabel: String,
+    maxLabel: String,
+    min: Int?,
+    max: Int?,
+    onMinChange: (Int?) -> Unit,
+    onMaxChange: (Int?) -> Unit,
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(0.55f),
-    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space2),
+    ) {
+        OutlinedTextField(
+            value = min?.toString().orEmpty(),
+            onValueChange = { raw -> onMinChange(raw.filter(Char::isDigit).toIntOrNull()) },
+            label = { Text(minLabel) },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+        )
+        OutlinedTextField(
+            value = max?.toString().orEmpty(),
+            onValueChange = { raw -> onMaxChange(raw.filter(Char::isDigit).toIntOrNull()) },
+            label = { Text(maxLabel) },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+        )
+    }
 }
 
 private fun effectTagIcon(tag: String): ImageVector = when (tag) {

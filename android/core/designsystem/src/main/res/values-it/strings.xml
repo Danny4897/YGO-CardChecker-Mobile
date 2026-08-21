@@ -171,6 +171,10 @@
     <string name="decks_default_name">Nuovo mazzo</string>
     <string name="decks_empty_title">Nessun mazzo</string>
     <string name="decks_empty_body">Crea un mazzo oppure importane uno da testo o YDKE.</string>
+    <string name="decks_search_hint">Cerca mazzi</string>
+    <string name="decks_sort_toggle">Ordina per nome / più recenti</string>
+    <string name="decks_search_empty_title">Nessun risultato</string>
+    <string name="decks_search_empty_body">Nessun mazzo corrisponde alla ricerca.</string>
     <string name="decks_create">Crea mazzo</string>
     <string name="decks_import">Importa</string>
     <string name="decks_tap_to_edit">Tocca per modificare</string>
@@ -293,9 +297,11 @@
     <string name="detail_banlist">Banlist per formato</string>
     <string name="detail_banlist_copies">%1$s · max %2$d</string>
     <string name="settings_offline_hat_ready">Pack HAT offline pronto (catalogo + script + Related)</string>
-    <string name="search_filter_atk_exact">ATK (esatto, es. 1400)</string>
-    <string name="search_filter_def_exact">DEF (esatto, es. 1200)</string>
-    <string name="search_filter_stats_hint">Corrispondenza esatta. Lascia vuoto per ignorare.</string>
+    <string name="search_filter_atk_min">ATK min</string>
+    <string name="search_filter_atk_max">ATK max</string>
+    <string name="search_filter_def_min">DEF min</string>
+    <string name="search_filter_def_max">DEF max</string>
+    <string name="search_filter_stats_hint">Lascia vuoto un campo per non limitare quel lato.</string>
     <string name="flow_combo_tags">Tag combo dagli script</string>
     <string name="widget_random_hat">Carta HAT casuale</string>
     <string name="import_preview">Anteprima</string>

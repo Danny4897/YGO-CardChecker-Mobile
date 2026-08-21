@@ -171,6 +171,10 @@
     <string name="decks_default_name">New deck</string>
     <string name="decks_empty_title">No decks</string>
     <string name="decks_empty_body">Create a deck or import one from text or YDKE.</string>
+    <string name="decks_search_hint">Search decks</string>
+    <string name="decks_sort_toggle">Sort by name / most recent</string>
+    <string name="decks_search_empty_title">No matches</string>
+    <string name="decks_search_empty_body">No deck name matches your search.</string>
     <string name="decks_create">Create deck</string>
     <string name="decks_import">Import</string>
     <string name="decks_tap_to_edit">Tap to edit</string>
@@ -293,9 +297,11 @@
     <string name="detail_banlist">Banlist by format</string>
     <string name="detail_banlist_copies">%1$s · max %2$d</string>
     <string name="settings_offline_hat_ready">HAT offline pack ready (catalog + scripts + Related)</string>
-    <string name="search_filter_atk_exact">ATK (exact, e.g. 1400)</string>
-    <string name="search_filter_def_exact">DEF (exact, e.g. 1200)</string>
-    <string name="search_filter_stats_hint">Exact match. Leave blank to ignore.</string>
+    <string name="search_filter_atk_min">ATK min</string>
+    <string name="search_filter_atk_max">ATK max</string>
+    <string name="search_filter_def_min">DEF min</string>
+    <string name="search_filter_def_max">DEF max</string>
+    <string name="search_filter_stats_hint">Leave a field blank to ignore that bound.</string>
     <string name="flow_combo_tags">Combo tags from scripts</string>
     <string name="widget_random_hat">Random HAT card</string>
     <string name="import_preview">Preview</string>
