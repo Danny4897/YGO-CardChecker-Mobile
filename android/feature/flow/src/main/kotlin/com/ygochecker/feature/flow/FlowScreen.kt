@@ -395,7 +395,10 @@ private fun FlowCatalogScreen(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBackToCoach) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(DesignR.string.flow_back_to_coach),
+                )
             }
             Text(stringResource(DesignR.string.flow_back_to_coach), style = MaterialTheme.typography.labelLarge)
         }
