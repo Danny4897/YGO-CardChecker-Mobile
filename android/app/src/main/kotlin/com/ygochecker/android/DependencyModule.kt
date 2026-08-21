@@ -60,6 +60,7 @@ abstract class DependencyModule {
     @Binds abstract fun getEffectScripts(value: DefaultGetEffectScripts): GetEffectScripts
     @Binds abstract fun getSegocProfile(value: DefaultGetSegocProfile): GetSegocProfile
     @Binds abstract fun getSegocProfiles(value: DefaultGetSegocProfiles): GetSegocProfiles
+    @Binds abstract fun findSimultaneousTriggers(value: DefaultFindSimultaneousTriggers): FindSimultaneousTriggers
     @Binds abstract fun getRelatedCards(value: DefaultGetRelatedCards): GetRelatedCards
     @Binds abstract fun flowCatalog(value: AssetFlowCatalog): FlowCatalog
     @Binds abstract fun listFlows(value: DefaultListFlows): ListFlows
