@@ -230,10 +230,12 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
     // Settings/Overlay have no back-stack entry of their own — without this,
     // the system back button exits the app instead of returning to the tabs.
     BackHandler(enabled = section != "tabs") {
-        section = "tabs"
+        section = if (section == "overlay") "settings" else "tabs"
     }
 
-    CompositionLocalProvider(LocalOpenSettings provides { section = "settings" }) {
+    CompositionLocalProvider(
+        LocalOpenSettings provides if (section == "tabs") ({ section = "settings" }) else null,
+    ) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {

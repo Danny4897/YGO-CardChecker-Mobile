@@ -12,6 +12,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,6 +39,7 @@ fun attributeSpecOrNull(attribute: String?): AttributeSpec? =
 fun AttributeBadge(attribute: String?, modifier: Modifier = Modifier, compact: Boolean = false) {
     val spec = attributeSpecOrNull(attribute) ?: return
     val size = if (compact) 18.dp else 46.dp
+    val density = LocalDensity.current
     Box(
         modifier
             .size(size)
@@ -45,8 +47,8 @@ fun AttributeBadge(attribute: String?, modifier: Modifier = Modifier, compact: B
             .background(
                 Brush.radialGradient(
                     colors = listOf(spec.sphereColor, spec.sphereColorDark),
-                    center = Offset(size.value * 0.32f, size.value * 0.28f),
-                    radius = size.value * 0.9f,
+                    center = with(density) { Offset(size.toPx() * 0.32f, size.toPx() * 0.28f) },
+                    radius = with(density) { size.toPx() * 0.9f },
                 ),
             ),
         contentAlignment = Alignment.Center,
