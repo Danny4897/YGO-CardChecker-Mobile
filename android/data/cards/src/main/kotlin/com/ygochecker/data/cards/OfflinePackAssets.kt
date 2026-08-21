@@ -16,7 +16,8 @@ internal object OfflinePackAssets {
     const val SYNERGIES = "offline-pack/synergies-manual.json.gz"
     const val FLOWS_HAT = "offline-pack/flows-hat.json"
     const val CARD_ROLES_HAT = "offline-pack/card-roles-hat.json"
-    const val PACK_VERSION = "hat-offline-v3-scripts-no-lua"
+    const val SEGOC_PROFILES = "offline-pack/segoc-profiles.json.gz"
+    const val PACK_VERSION = "hat-offline-v4-segoc-profiles"
 
     private const val TAG = "OfflinePackAssets"
 
@@ -88,6 +89,32 @@ internal object OfflinePackAssets {
                     targetName = o.optString("name"),
                 )
             }
+        }
+        return out
+    }
+
+    fun parseSegocProfiles(json: String): List<SegocProfileEntity> {
+        val root = JSONObject(json)
+        val out = ArrayList<SegocProfileEntity>(root.length())
+        val keys = root.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val cardId = key.toIntOrNull() ?: continue
+            val o = root.optJSONObject(key) ?: continue
+            val events = o.optJSONArray("triggerEvents")
+            val eventsCsv = if (events != null) {
+                (0 until events.length()).mapNotNull { events.optString(it).ifBlank { null } }
+                    .joinToString(",") { it.uppercase() }
+            } else {
+                ""
+            }
+            out += SegocProfileEntity(
+                cardId = cardId,
+                effectType = o.optString("effectType", "none").uppercase(),
+                missedTimingRisk = o.optBoolean("missedTimingRisk", false),
+                spellSpeed = o.optIntOrNull("spellSpeed"),
+                triggerEventsCsv = eventsCsv,
+            )
         }
         return out
     }

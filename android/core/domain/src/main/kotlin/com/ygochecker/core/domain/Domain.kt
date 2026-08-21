@@ -138,6 +138,8 @@ interface OfflinePackRepository {
     suspend fun effectScriptCount(): Int
     suspend fun effectScript(cardId: Int): EffectScriptSummary?
     suspend fun effectScripts(ids: Collection<Int>): List<EffectScriptSummary>
+    suspend fun segocProfile(cardId: Int): SegocProfileSummary?
+    suspend fun segocProfiles(ids: Collection<Int>): List<SegocProfileSummary>
     suspend fun relatedCards(cardId: Int, limit: Int = 24): List<RelatedCardRef>
 }
 

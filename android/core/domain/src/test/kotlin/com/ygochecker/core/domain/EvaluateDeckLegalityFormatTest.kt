@@ -6,6 +6,7 @@ import com.ygochecker.core.model.EffectScriptSummary
 import com.ygochecker.core.model.GameFormat
 import com.ygochecker.core.model.OfflinePackStatus
 import com.ygochecker.core.model.RelatedCardRef
+import com.ygochecker.core.model.SegocProfileSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.Assert.assertEquals
@@ -75,5 +76,7 @@ private class FakePack(
     override suspend fun effectScriptCount(): Int = 0
     override suspend fun effectScript(cardId: Int): EffectScriptSummary? = null
     override suspend fun effectScripts(ids: Collection<Int>): List<EffectScriptSummary> = emptyList()
+    override suspend fun segocProfile(cardId: Int): SegocProfileSummary? = null
+    override suspend fun segocProfiles(ids: Collection<Int>): List<SegocProfileSummary> = emptyList()
     override suspend fun relatedCards(cardId: Int, limit: Int): List<RelatedCardRef> = emptyList()
 }

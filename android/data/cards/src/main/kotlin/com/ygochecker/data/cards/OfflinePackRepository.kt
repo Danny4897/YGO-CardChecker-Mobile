@@ -13,6 +13,7 @@ import com.ygochecker.core.model.EffectTextProfiler
 import com.ygochecker.core.model.GameFormat
 import com.ygochecker.core.model.OfflinePackStatus
 import com.ygochecker.core.model.RelatedCardRef
+import com.ygochecker.core.model.SegocProfileSummary
 import com.ygochecker.core.model.SyncPhase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -76,6 +77,15 @@ class RoomOfflinePackRepository @Inject constructor(
         val unique = ids.filter { it > 0 }.distinct()
         if (unique.isEmpty()) return emptyList()
         return dao.effectScripts(unique).map(EffectScriptEntity::toSummary)
+    }
+
+    override suspend fun segocProfile(cardId: Int): SegocProfileSummary? =
+        dao.segocProfile(cardId)?.toSummary()
+
+    override suspend fun segocProfiles(ids: Collection<Int>): List<SegocProfileSummary> {
+        val unique = ids.filter { it > 0 }.distinct()
+        if (unique.isEmpty()) return emptyList()
+        return dao.segocProfiles(unique).map(SegocProfileEntity::toSummary)
     }
 
     override suspend fun relatedCards(cardId: Int, limit: Int): List<RelatedCardRef> =
@@ -142,6 +152,9 @@ class RoomOfflinePackRepository @Inject constructor(
             if (!coreReady || dao.effectScriptCount() < 100) {
                 // Quiet: must not leave Settings progress stuck at N/N.
                 loadHatScriptsPackFromAsset(reportProgress = false)
+            }
+            if (dao.meta(META_SEGOC) != OfflinePackAssets.PACK_VERSION || dao.segocProfileCount() < 1000) {
+                loadSegocProfilesFromAsset()
             }
             enrichScriptsFromCardTextInternal()
             dao.putMeta(SyncMetaEntity(META_HAT_CORE, OfflinePackAssets.PACK_VERSION))
@@ -401,6 +414,15 @@ class RoomOfflinePackRepository @Inject constructor(
             dao.insertCardRelations(rows)
         }
         dao.putMeta(SyncMetaEntity(META_SYNERGIES, OfflinePackAssets.PACK_VERSION))
+    }
+
+    private suspend fun loadSegocProfilesFromAsset() {
+        val json = OfflinePackAssets.readAssetText(context, OfflinePackAssets.SEGOC_PROFILES)
+        val rows = OfflinePackAssets.parseSegocProfiles(json)
+        if (rows.isNotEmpty()) {
+            rows.chunked(500).forEach { dao.insertSegocProfiles(it) }
+        }
+        dao.putMeta(SyncMetaEntity(META_SEGOC, OfflinePackAssets.PACK_VERSION))
     }
 
     private suspend fun loadFormatLegalityFromAsset(): Int {
@@ -833,6 +855,7 @@ class RoomOfflinePackRepository @Inject constructor(
         const val META_HAT_CORE = "hat_offline_core"
         const val META_RELATED = "hat_related_pack"
         const val META_SYNERGIES = "manual_synergies"
+        const val META_SEGOC = "segoc_profiles"
         /** HAT related pack is ~20k+ edges; below this we treat DB as broken and reload. */
         const val MIN_HEALTHY_RELATIONS = 5_000
     }

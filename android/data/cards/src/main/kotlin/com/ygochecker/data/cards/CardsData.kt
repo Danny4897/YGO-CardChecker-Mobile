@@ -500,7 +500,7 @@ internal fun CardEntity.toModel() =
 internal fun Card.toEntity() =
     CardEntity(id, name, type, race, attribute, attack, defense, level, description, year)
 
-private fun SegocProfileEntity.toSummary() = com.ygochecker.core.model.SegocProfileSummary(
+internal fun SegocProfileEntity.toSummary() = com.ygochecker.core.model.SegocProfileSummary(
     cardId = cardId,
     effectType = com.ygochecker.core.model.SegocEffectType.valueOf(effectType),
     spellSpeed = spellSpeed,
