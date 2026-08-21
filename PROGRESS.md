@@ -2,9 +2,6 @@
 
 ## Open
 
-- **SEGOC Flow Coach** (branch `refactor/segoc-flow-coach`, spec `docs/superpowers/specs/2026-08-21-segoc-flow-coach-design.md`) —
-  in corso: estende Combo Assist con dati SEGOC reali (Spell Speed, tipo effetto, rischio Missed Timing, trigger
-  event) estratti da Lua, motore di rilevamento trigger simultanei sul mazzo attivo, Flow tab come coach
 - **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
 - **Nuove feature DB-powered** — lista spesa mazzo↔collezione, meta snapshot mazzi pubblici, alert banlist
   schedulati (schema `user_alerts`/`banlist_snapshots` già pronto lato Supabase, non ancora popolato)
@@ -14,6 +11,17 @@
 
 ## Done
 
+- 2026-08-21: **SEGOC Flow Coach** (branch `refactor/segoc-flow-coach`, spec `docs/superpowers/specs/2026-08-21-segoc-flow-coach-design.md`,
+  plan `docs/superpowers/plans/2026-08-21-segoc-flow-coach.md`) — Flow tab passa da catalogo HAT curato a coach sul
+  mazzo attivo. Nuova pipeline `segoc-parser.ts` (ygo-card-checker/tools/card-knowledge-db) estrae per l'intero
+  catalogo (13.397 carte, verificato su script Lua reali EDOPro/MDPro3) effectType/spellSpeed/missedTimingRisk/
+  triggerEvents, wired nel loop esistente `build-effect-scripts.ts`. Asset bundlato Android `segoc-profiles.json.gz`
+  (85KB), nuova tabella Room + porte dominio (`GetSegocProfiles`, `FindSimultaneousTriggers`), detector puro per
+  coppie di carte con trigger simultanei nello stesso mazzo, avviso con regola SEGOC reale (APNAP + LIFO). Catalogo
+  HAT + rehearsal restano, retrocessi a sezione secondaria ("Browse curated HAT flows"), invariati. Verificato
+  end-to-end su emulatore con mazzo reale importato (Effect Veiler → badge "SP2 QUICK", corretto). Build/test
+  verdi su entrambe le codebase (TS + Kotlin). Vedi il ledger SDD in `.superpowers/sdd/progress.md` per il
+  dettaglio task-per-task e review.
 - 2026-08-21: **Reimagining pass** (branch `claude/app-improvements-ux-xzo4yw`, commit 698814c..8711a8e) —
   navigazione reale con back-stack (BackHandler in MainActivity + ProfileRoute, Overlay spostato nel drawer),
   nuova tab **Home** (`feature:home`, dashboard con AlertBell/legalità ultimo mazzo/scorciatoie), **Flow
