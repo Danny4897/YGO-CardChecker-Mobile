@@ -5,8 +5,10 @@ import com.ygochecker.core.common.AppResult
 import com.ygochecker.core.model.Card
 import com.ygochecker.core.model.DeckSection
 import com.ygochecker.core.model.EffectTextProfiler
+import com.ygochecker.core.model.FormatCardRole
 import com.ygochecker.core.model.FormatExtraStaples
 import com.ygochecker.core.model.GameFormat
+import com.ygochecker.core.model.HatCardRole
 import com.ygochecker.core.model.isExtraDeckType
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -63,6 +65,7 @@ class SynergyCompleteDeck @Inject constructor(
     private val scripts: GetEffectScripts,
     private val legality: EvaluateDeckLegality,
     private val resolve: ResolveCardById,
+    private val flowCatalog: FlowCatalog,
 ) : CompleteDeck {
     override suspend fun invoke(
         deckId: Long,
@@ -236,6 +239,8 @@ class SynergyCompleteDeck @Inject constructor(
             .distinct()
             .forEach { id -> pendingExpand.addLast(id to seedWeight(id)) }
         drainPending(24)
+        boostFromMatchedFlows(format, copiesAcross.keys.toSet(), scores, pendingExpand)
+        drainPending(16)
 
         if (extraTarget > extraQty) {
             if (!hasTuner) {
@@ -390,6 +395,8 @@ class SynergyCompleteDeck @Inject constructor(
                 haveSide = qtyById[id to DeckSection.SIDE] ?: 0,
                 max = max,
                 hasTuner = hasTuner,
+                format = format,
+                hatRoles = flowCatalog.rolesFor(id, format),
             ) ?: continue
 
             val room = when (section) {
@@ -410,6 +417,22 @@ class SynergyCompleteDeck @Inject constructor(
             if (add <= 0) continue
 
             var score = rawScore * prof.engineWeight
+            val hatRoles = flowCatalog.rolesFor(id, format)
+            if (hatRoles.isNotEmpty()) {
+                score *= 1.0 + hatRoles.maxOf { it.priority } * 0.04
+                when {
+                    hatRoles.any { it.role == HatCardRole.ENGINE_STARTER || it.role == HatCardRole.SEARCHER } ->
+                        score *= 1.55
+                    hatRoles.any { it.role == HatCardRole.TRAP_LINE || it.role == HatCardRole.INTERRUPT } ->
+                        score *= 1.4
+                    hatRoles.any { it.role == HatCardRole.BAIT || it.role == HatCardRole.REMOVAL } ->
+                        score *= 1.35
+                    hatRoles.any { it.role == HatCardRole.SIDE_TECH } && section == DeckSection.SIDE ->
+                        score *= 1.7
+                    hatRoles.any { it.role == HatCardRole.SIDE_TECH } && section != DeckSection.SIDE ->
+                        score *= 0.55
+                }
+            }
             val gapBoost = when (section) {
                 DeckSection.EXTRA -> 1.0 + extraGap * 0.45
                 DeckSection.MAIN -> 1.0 + mainGap * 0.06
@@ -581,6 +604,26 @@ class SynergyCompleteDeck @Inject constructor(
         }
     }
 
+    private suspend fun boostFromMatchedFlows(
+        format: GameFormat,
+        deckIds: Set<Int>,
+        scores: MutableMap<Int, Double>,
+        pendingExpand: ArrayDeque<Pair<Int, Double>>,
+    ) {
+        for (summary in flowCatalog.list(format)) {
+            val graph = flowCatalog.get(summary.id) ?: continue
+            val flowCards = graph.nodes.values.flatMap { it.cardIds }.toSet()
+            if (flowCards.isEmpty()) continue
+            val hit = flowCards.intersect(deckIds)
+            if (hit.isEmpty()) continue
+            val boost = 2.4 * (1.0 + hit.size * 0.35)
+            for (id in flowCards) {
+                scores[id] = (scores[id] ?: 0.0) + boost
+                pendingExpand.addLast(id to 1.9)
+            }
+        }
+    }
+
     private fun preferredSection(
         card: Card,
         prof: EffectTextProfiler.Profile,
@@ -592,15 +635,18 @@ class SynergyCompleteDeck @Inject constructor(
         haveSide: Int,
         max: Int,
         hasTuner: Boolean,
+        format: GameFormat,
+        hatRoles: List<FormatCardRole>,
     ): DeckSection? {
         val extraType = prof.isExtraMonster || isExtraDeckType(card.type)
         if (extraType) {
             if (prof.requiresTuner && !hasTuner && prof.isSynchroMonster) return null
-            // Extra already has this card → never add more copies.
             if (needExtra && haveExtra == 0) return DeckSection.EXTRA
             if (needSide && haveSide < max) return DeckSection.SIDE
             return null
         }
+        val sideTech = hatRoles.any { it.role == HatCardRole.SIDE_TECH }
+        if (sideTech && needSide && haveSide < max) return DeckSection.SIDE
         if (prof.isTuner && needMain && haveMain < max) return DeckSection.MAIN
         if (needMain && haveMain < max) return DeckSection.MAIN
         if (needSide && haveSide < max) return DeckSection.SIDE

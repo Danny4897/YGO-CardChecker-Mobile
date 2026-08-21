@@ -1,7 +1,5 @@
 package com.ygochecker.feature.flow
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -12,11 +10,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,358 +41,268 @@ import com.ygochecker.core.designsystem.SettingsGroup
 import com.ygochecker.core.designsystem.StatusChip
 import com.ygochecker.core.designsystem.StatusTone
 import com.ygochecker.core.designsystem.ThemedScreenHeader
-import com.ygochecker.core.designsystem.effectMechanicLabel
-import com.ygochecker.core.domain.EvaluateDeckLegality
+import com.ygochecker.core.domain.DeckFlowLinkRepository
 import com.ygochecker.core.domain.FormatPreference
-import com.ygochecker.core.domain.GetEffectScripts
+import com.ygochecker.core.domain.GetFlow
 import com.ygochecker.core.domain.ListDecklists
-import com.ygochecker.core.domain.ObserveOfflinePack
-import com.ygochecker.core.model.DeckCard
-import com.ygochecker.core.model.DeckSection
-import com.ygochecker.core.model.Decklist
-import com.ygochecker.core.model.EffectScriptSummary
+import com.ygochecker.core.domain.ListFlows
+import com.ygochecker.core.model.FlowEdge
+import com.ygochecker.core.model.FlowGraph
+import com.ygochecker.core.model.FlowKind
+import com.ygochecker.core.model.FlowRehearsalEngine
+import com.ygochecker.core.model.FlowSummary
 import com.ygochecker.core.model.GameFormat
+import com.ygochecker.core.model.TimingAnswer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.random.Random
-
-data class FlowValidation(
-    val starters: List<String> = emptyList(),
-    val extenders: List<String> = emptyList(),
-    val handtraps: List<String> = emptyList(),
-    val unscripted: List<String> = emptyList(),
-    val legalityIssues: List<String> = emptyList(),
-    val comboByTag: Map<String, List<String>> = emptyMap(),
-    val scriptHits: Int = 0,
-    val uniqueCards: Int = 0,
-)
-
-data class TestHandState(
-    val deck: List<DeckCard> = emptyList(),
-    val hand: List<DeckCard> = emptyList(),
-    val field: List<DeckCard> = emptyList(),
-    val gy: List<DeckCard> = emptyList(),
-)
 
 @HiltViewModel
 class FlowViewModel @Inject constructor(
-    listDecks: ListDecklists,
     formatPreference: FormatPreference,
-    observePack: ObserveOfflinePack,
-    private val legality: EvaluateDeckLegality,
-    private val scripts: GetEffectScripts,
+    listDecks: ListDecklists,
+    private val listFlows: ListFlows,
+    private val getFlow: GetFlow,
+    private val flowLinks: DeckFlowLinkRepository,
 ) : ViewModel() {
-    val decks = listDecks.invoke().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val format = formatPreference.values.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GameFormat.TCG)
-    val pack = observePack.status().stateIn(
+    val format = formatPreference.values.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        com.ygochecker.core.model.OfflinePackStatus(0, false, 0, null, null),
+        GameFormat.HAT,
+    )
+    val decks = listDecks.invoke().stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        emptyList(),
     )
 
-    var selectedId by mutableStateOf<Long?>(null)
+    var summaries by mutableStateOf<List<FlowSummary>>(emptyList())
         private set
-    var validation by mutableStateOf<FlowValidation?>(null)
+    var linkedIds by mutableStateOf<Set<String>>(emptySet())
+        private set
+    var focusDeckId by mutableStateOf<Long?>(null)
         private set
     var loading by mutableStateOf(false)
         private set
-    var testHand by mutableStateOf(TestHandState())
+    var activeGraph by mutableStateOf<FlowGraph?>(null)
+        private set
+    var engine by mutableStateOf<FlowRehearsalEngine?>(null)
+        private set
+    var timingError by mutableStateOf(false)
+        private set
+    var kindFilter by mutableStateOf<FlowKind?>(null)
         private set
 
-    fun select(deck: Decklist) {
-        selectedId = deck.id
-        resetTestHand(deck)
+    fun refresh(format: GameFormat) {
         viewModelScope.launch {
             loading = true
-            validation = validate(deck, format.value)
+            summaries = listFlows.invoke(format)
+            val deckId = focusDeckId ?: decks.value.firstOrNull()?.id
+            linkedIds = if (deckId != null) {
+                flowLinks.flowIdsForDeck(deckId).toSet()
+            } else {
+                emptySet()
+            }
             loading = false
         }
     }
 
-    fun drawOpeningHand(deck: Decklist) {
-        val pool = expandMain(deck).shuffled(Random.Default)
-        val hand = pool.take(5)
-        testHand = TestHandState(deck = pool.drop(5), hand = hand, field = emptyList(), gy = emptyList())
+    fun focusDeck(id: Long?) {
+        focusDeckId = id
+        viewModelScope.launch {
+            linkedIds = if (id != null) flowLinks.flowIdsForDeck(id).toSet() else emptySet()
+        }
     }
 
-    fun mulligan(deck: Decklist) = drawOpeningHand(deck)
-
-    fun playFromHand(index: Int) {
-        val card = testHand.hand.getOrNull(index) ?: return
-        testHand = testHand.copy(
-            hand = testHand.hand.filterIndexed { i, _ -> i != index },
-            field = testHand.field + card,
-        )
+    fun toggleKindFilter(kind: FlowKind?) {
+        kindFilter = if (kindFilter == kind) null else kind
     }
 
-    fun handToGy(index: Int) {
-        val card = testHand.hand.getOrNull(index) ?: return
-        testHand = testHand.copy(
-            hand = testHand.hand.filterIndexed { i, _ -> i != index },
-            gy = testHand.gy + card,
-        )
+    fun openFlow(id: String) {
+        viewModelScope.launch {
+            val graph = getFlow.invoke(id) ?: return@launch
+            activeGraph = graph
+            engine = FlowRehearsalEngine(graph)
+            timingError = false
+        }
     }
 
-    private fun resetTestHand(deck: Decklist) {
-        testHand = TestHandState(deck = expandMain(deck))
+    fun closeFlow() {
+        activeGraph = null
+        engine = null
+        timingError = false
     }
 
-    private fun expandMain(deck: Decklist): List<DeckCard> =
-        deck.cards
-            .filter { it.section == DeckSection.MAIN }
-            .flatMap { entry -> List(entry.quantity) { entry.copy(quantity = 1) } }
+    fun restart() {
+        val g = activeGraph ?: return
+        engine = FlowRehearsalEngine(g)
+        timingError = false
+    }
 
-    fun ensureSelection(decks: List<Decklist>, format: GameFormat) {
-        if (decks.isEmpty()) {
-            selectedId = null
-            validation = null
-            testHand = TestHandState()
+    fun advanceDefault(chainLink: Int = 1) {
+        val eng = engine ?: return
+        if (!eng.mustPassTimingGate(TimingAnswer(chainLink))) {
+            timingError = true
             return
         }
-        val current = decks.firstOrNull { it.id == selectedId } ?: decks.first()
-        if (selectedId != current.id) {
-            selectedId = current.id
-            resetTestHand(current)
-        }
-        viewModelScope.launch {
-            loading = true
-            validation = validate(current, format)
-            loading = false
-        }
+        timingError = false
+        eng.advanceDefault(TimingAnswer(chainLink))
+        engine = FlowRehearsalEngine(eng.graph, eng.currentId)
     }
 
-    private suspend fun validate(deck: Decklist, format: GameFormat): FlowValidation {
-        val ids = deck.cards.map { it.card.id }.distinct()
-        val byId = if (ids.isEmpty()) {
-            emptyMap()
-        } else {
-            scripts.invoke(ids).associateBy(EffectScriptSummary::cardId)
+    fun choose(edge: FlowEdge, chainLink: Int = 1) {
+        val eng = engine ?: return
+        if (!eng.mustPassTimingGate(TimingAnswer(chainLink))) {
+            timingError = true
+            return
         }
-        val starters = linkedSetOf<String>()
-        val extenders = linkedSetOf<String>()
-        val handtraps = linkedSetOf<String>()
-        val unscripted = linkedSetOf<String>()
-        val combo = linkedMapOf<String, MutableList<String>>()
-        var hits = 0
-        deck.cards.groupBy { it.card.id }.forEach { (id, entries) ->
-            val name = entries.first().card.name
-            val script = byId[id]
-            val roles = script?.roles.orEmpty().map { it.lowercase() }
-            val tags = script?.tags.orEmpty()
-            if (script != null && (roles.isNotEmpty() || tags.isNotEmpty())) hits += 1
-            tags.forEach { tag -> combo.getOrPut(tag) { mutableListOf() }.add(name) }
-            val inferredExtender = tags.any {
-                it.contains("ss_from") || it == "special_summons" || it == "searches_deck" || it == "revives_from_gy"
-            }
-            val inferredStarter = tags.any {
-                it == "searches_deck" || it == "ss_from_deck" || it == "ss_from_hand"
-            }
-            val inferredHandtrap = tags.contains("hand_trap") || tags.contains("quick_effect") ||
-                tags.contains("negates") || tags.contains("discards")
-            when {
-                script == null || (roles.isEmpty() && tags.isEmpty()) -> unscripted += name
-                else -> {
-                    if (roles.any { it.contains("starter") } || inferredStarter) starters += name
-                    if (roles.any { it.contains("extender") } || inferredExtender) extenders += name
-                    if (roles.any {
-                            it.contains("handtrap") || it.contains("hand-trap") || it.contains("hand_trap")
-                        } || inferredHandtrap
-                    ) {
-                        handtraps += name
-                    }
-                }
-            }
+        timingError = false
+        eng.choose(edge, TimingAnswer(chainLink))
+        engine = FlowRehearsalEngine(eng.graph, eng.currentId)
+    }
+
+    fun filteredSummaries(): List<FlowSummary> {
+        var list = summaries
+        if (linkedIds.isNotEmpty()) {
+            list = list.sortedByDescending { it.id in linkedIds }
         }
-        val issues = legality.invoke(deck, format).cards
-            .filter { !it.isLegal }
-            .map { card ->
-                val name = deck.cards.firstOrNull { it.card.id == card.cardId }?.card?.name
-                    ?: card.cardId.toString()
-                "$name (${card.currentCopies}/${card.maxCopies})"
-            }
-        return FlowValidation(
-            starters = starters.toList(),
-            extenders = extenders.toList(),
-            handtraps = handtraps.toList(),
-            unscripted = unscripted.toList(),
-            legalityIssues = issues,
-            comboByTag = combo.mapValues { it.value.distinct() }.filterValues { it.isNotEmpty() },
-            scriptHits = hits,
-            uniqueCards = ids.size,
-        )
+        val f = kindFilter ?: return list
+        return list.filter { it.kind == f }
     }
 }
 
 @Composable
 fun FlowRoute(vm: FlowViewModel = hiltViewModel()) {
-    // Engine UI parked — Coming Soon until we redesign Flow.
-    com.ygochecker.core.designsystem.ComingSoonScreen(
-        title = stringResource(DesignR.string.flow_title),
-        body = stringResource(DesignR.string.flow_coming_soon_body),
-    )
+    val format by vm.format.collectAsStateWithLifecycle()
+    val decks by vm.decks.collectAsStateWithLifecycle()
+    LaunchedEffect(format, decks) { vm.refresh(format) }
+
+    val graph = vm.activeGraph
+    val eng = vm.engine
+    if (graph != null && eng != null) {
+        FlowRehearsalScreen(
+            graph = graph,
+            engine = eng,
+            timingError = vm.timingError,
+            onBack = vm::closeFlow,
+            onRestart = vm::restart,
+            onAdvanceDefault = { vm.advanceDefault(1) },
+            onAdvanceFailTiming = { vm.advanceDefault(2) },
+            onChoose = { edge -> vm.choose(edge, 1) },
+        )
+    } else {
+        FlowCatalogScreen(
+            format = format,
+            loading = vm.loading,
+            summaries = vm.filteredSummaries(),
+            linkedIds = vm.linkedIds,
+            decks = decks,
+            focusDeckId = vm.focusDeckId ?: decks.firstOrNull()?.id,
+            kindFilter = vm.kindFilter,
+            onKindFilter = vm::toggleKindFilter,
+            onFocusDeck = vm::focusDeck,
+            onOpen = vm::openFlow,
+        )
+    }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-@Suppress("unused")
-private fun FlowRouteLegacy(vm: FlowViewModel = hiltViewModel()) {
-    val decks by vm.decks.collectAsStateWithLifecycle()
-    val format by vm.format.collectAsStateWithLifecycle()
-    val pack by vm.pack.collectAsStateWithLifecycle()
-    LaunchedEffect(decks, format) {
-        vm.ensureSelection(decks, format)
-    }
+private fun FlowCatalogScreen(
+    format: GameFormat,
+    loading: Boolean,
+    summaries: List<FlowSummary>,
+    linkedIds: Set<String>,
+    decks: List<com.ygochecker.core.model.Decklist>,
+    focusDeckId: Long?,
+    kindFilter: FlowKind?,
+    onKindFilter: (FlowKind?) -> Unit,
+    onFocusDeck: (Long?) -> Unit,
+    onOpen: (String) -> Unit,
+) {
     Column(Modifier.fillMaxSize()) {
         ThemedScreenHeader(
-            stringResource(DesignR.string.flow_title),
-            stringResource(DesignR.string.flow_subtitle),
+            title = stringResource(DesignR.string.flow_title),
+            subtitle = stringResource(DesignR.string.flow_subtitle),
         )
-        if (decks.isEmpty()) {
-            EmptyState(
-                icon = Icons.Default.AccountTree,
-                title = stringResource(DesignR.string.flow_empty_deck),
-                body = stringResource(DesignR.string.decks_empty_body),
-                modifier = Modifier.weight(1f),
-            )
-        } else {
-            Text(
-                stringResource(DesignR.string.flow_pick_deck),
-                modifier = Modifier.padding(horizontal = DuelSpacing.space4),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = DuelSpacing.space4, vertical = DuelSpacing.space2),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                decks.forEach { deck ->
-                    FilterChip(
-                        selected = deck.id == vm.selectedId,
-                        onClick = { vm.select(deck) },
-                        label = { Text(deck.name) },
-                    )
-                }
-            }
-            if (pack.effectScriptCount < 100) {
+        when {
+            loading && summaries.isEmpty() -> {
                 Text(
-                    stringResource(DesignR.string.flow_scripts_missing),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(horizontal = DuelSpacing.space4, vertical = DuelSpacing.space1),
+                    text = stringResource(DesignR.string.flow_loading),
+                    modifier = Modifier.padding(DuelSpacing.space4),
                 )
             }
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(DuelSpacing.space4),
-                verticalArrangement = Arrangement.spacedBy(DuelSpacing.space2),
-            ) {
-                item(key = "combo-roadmap") {
-                    Surface(
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(
-                            Modifier.padding(DuelSpacing.space3),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
+            summaries.isEmpty() -> {
+                EmptyState(
+                    icon = Icons.Default.AccountTree,
+                    title = stringResource(DesignR.string.flow_empty_title),
+                    body = stringResource(DesignR.string.flow_empty_body),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(DuelSpacing.space4),
+                )
+            }
+            else -> {
+                LazyColumn(
+                    contentPadding = PaddingValues(DuelSpacing.space4),
+                    verticalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (decks.isNotEmpty()) {
+                        item(key = "deck-focus") {
                             Text(
-                                stringResource(DesignR.string.flow_combo_roadmap_title),
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            Text(
-                                stringResource(DesignR.string.flow_combo_roadmap_body),
+                                text = stringResource(DesignR.string.flow_deck_links_hint),
                                 style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }
-                    }
-                }
-                item(key = "test-hand") {
-                    val deck = decks.firstOrNull { it.id == vm.selectedId } ?: decks.first()
-                    TestHandBoard(
-                        state = vm.testHand,
-                        onDraw = { vm.drawOpeningHand(deck) },
-                        onMulligan = { vm.mulligan(deck) },
-                        onPlay = vm::playFromHand,
-                        onGy = vm::handToGy,
-                    )
-                }
-                item(key = "deck-summary") {
-                    val deck = decks.firstOrNull { it.id == vm.selectedId } ?: decks.first()
-                    Surface(
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(
-                            Modifier.padding(DuelSpacing.space3),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(deck.name, style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                stringResource(
-                                    DesignR.string.decks_section_counts,
-                                    deck.cards.filter { it.section == DeckSection.MAIN }.sumOf { it.quantity },
-                                    deck.cards.filter { it.section == DeckSection.EXTRA }.sumOf { it.quantity },
-                                    deck.cards.filter { it.section == DeckSection.SIDE }.sumOf { it.quantity },
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                            vm.validation?.let { result ->
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(top = 8.dp),
+                            ) {
+                                decks.take(8).forEach { deck ->
+                                    FilterChip(
+                                        selected = focusDeckId == deck.id,
+                                        onClick = { onFocusDeck(deck.id) },
+                                        label = { Text(deck.name) },
+                                    )
+                                }
+                            }
+                            if (linkedIds.isNotEmpty()) {
                                 Text(
-                                    stringResource(
-                                        DesignR.string.flow_script_coverage,
-                                        result.scriptHits,
-                                        result.uniqueCards,
-                                    ),
+                                    text = stringResource(DesignR.string.flow_linked_count, linkedIds.size),
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.padding(top = 8.dp),
                                 )
                             }
                         }
                     }
-                }
-                item(key = "validation") {
-                    val result = vm.validation
-                    if (vm.loading && result == null) {
+                    item(key = "filters") {
                         Text(
-                            stringResource(DesignR.string.flow_loading),
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = stringResource(DesignR.string.flow_format_hint, format.id.uppercase()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    } else if (result != null) {
-                        SettingsGroup(title = stringResource(DesignR.string.flow_roles_title)) {
-                            RoleBlock(stringResource(DesignR.string.flow_starters), result.starters)
-                            RoleBlock(stringResource(DesignR.string.flow_extenders), result.extenders)
-                            RoleBlock(stringResource(DesignR.string.flow_handtraps), result.handtraps)
-                            RoleBlock(stringResource(DesignR.string.flow_unscripted), result.unscripted)
-                            if (result.comboByTag.isNotEmpty()) {
-                                Text(
-                                    stringResource(DesignR.string.flow_combo_tags),
-                                    style = MaterialTheme.typography.titleSmall,
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(top = 8.dp),
+                        ) {
+                            FlowKind.entries.forEach { kind ->
+                                FilterChip(
+                                    selected = kindFilter == kind,
+                                    onClick = { onKindFilter(kind) },
+                                    label = { Text(kindLabel(kind)) },
                                 )
-                                result.comboByTag.entries
-                                    .sortedByDescending { it.value.size }
-                                    .take(12)
-                                    .forEach { (tag, names) ->
-                                        RoleBlock(effectMechanicLabel(tag), names)
-                                    }
-                            }
-                            Text(
-                                stringResource(DesignR.string.flow_legality),
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            if (result.legalityIssues.isEmpty()) {
-                                StatusChip(stringResource(DesignR.string.flow_ok), StatusTone.Success)
-                            } else {
-                                result.legalityIssues.forEach { StatusChip(it, StatusTone.Error) }
                             }
                         }
+                    }
+                    items(summaries, key = { it.id }) { summary ->
+                        FlowCard(
+                            summary = summary,
+                            linked = summary.id in linkedIds,
+                            onClick = { onOpen(summary.id) },
+                        )
                     }
                 }
             }
@@ -397,154 +310,174 @@ private fun FlowRouteLegacy(vm: FlowViewModel = hiltViewModel()) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TestHandBoard(
-    state: TestHandState,
-    onDraw: () -> Unit,
-    onMulligan: () -> Unit,
-    onPlay: (Int) -> Unit,
-    onGy: (Int) -> Unit,
-) {
+private fun FlowCard(summary: FlowSummary, linked: Boolean, onClick: () -> Unit) {
     Surface(
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             Modifier.padding(DuelSpacing.space3),
-            verticalArrangement = Arrangement.spacedBy(DuelSpacing.space2),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(stringResource(DesignR.string.flow_test_hand), style = MaterialTheme.typography.titleMedium)
-            Text(
-                stringResource(DesignR.string.flow_engine_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text(text = summary.title, style = MaterialTheme.typography.titleMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = false,
-                    onClick = onDraw,
-                    label = { Text(stringResource(DesignR.string.flow_draw_hand)) },
-                )
-                FilterChip(
-                    selected = false,
-                    onClick = onMulligan,
-                    label = { Text(stringResource(DesignR.string.flow_mulligan)) },
+                StatusChip(kindLabel(summary.kind), StatusTone.Info)
+                summary.archetype?.let { StatusChip(it, StatusTone.Neutral) }
+                if (linked) {
+                    StatusChip(stringResource(DesignR.string.flow_linked_badge), StatusTone.Success)
+                }
+                StatusChip(
+                    stringResource(
+                        DesignR.string.flow_metrics_chip,
+                        summary.metrics.steps,
+                        summary.metrics.handCost,
+                    ),
+                    StatusTone.Neutral,
                 )
             }
-            // MDPRO-like vertical zones: Deck → Field → Hand → GY
-            Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    Modifier.padding(DuelSpacing.space3),
-                    verticalArrangement = Arrangement.spacedBy(DuelSpacing.space2),
-                ) {
-                    ZoneLabel(stringResource(DesignR.string.flow_zone_deck), state.deck.size)
-                    ZoneLabel(stringResource(DesignR.string.flow_zone_field), state.field.size)
-                    if (state.field.isNotEmpty()) {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            state.field.forEach { MiniCardChip(it.card.name) }
-                        }
+            if (summary.roleTags.isNotEmpty()) {
+                Text(
+                    text = summary.roleTags.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlowRehearsalScreen(
+    graph: FlowGraph,
+    engine: FlowRehearsalEngine,
+    timingError: Boolean,
+    onBack: () -> Unit,
+    onRestart: () -> Unit,
+    onAdvanceDefault: () -> Unit,
+    onAdvanceFailTiming: () -> Unit,
+    onChoose: (FlowEdge) -> Unit,
+) {
+    val node = engine.current
+    val options = engine.options()
+    val needsTiming = node.timingWindow == FlowRehearsalEngine.TIMING_HAND_DESTRUCTION_CL1 ||
+        node.timingWindow == FlowRehearsalEngine.TIMING_CHAIN_LINK_1_ONLY
+
+    Column(Modifier.fillMaxSize()) {
+        ThemedScreenHeader(
+            title = graph.title,
+            subtitle = graph.archetype,
+            actions = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                }
+            },
+        )
+        LazyColumn(
+            contentPadding = PaddingValues(DuelSpacing.space4),
+            verticalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+            modifier = Modifier.weight(1f),
+        ) {
+            item {
+                SettingsGroup(title = stringResource(DesignR.string.flow_step_title)) {
+                    Text(text = node.title, style = MaterialTheme.typography.titleLarge)
+                    node.body?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
                     }
-                    Text(stringResource(DesignR.string.flow_zone_hand), style = MaterialTheme.typography.titleSmall)
-                    if (state.hand.isEmpty()) {
-                        Text("—", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        state.hand.forEachIndexed { index, card ->
-                            Surface(
-                                shape = MaterialTheme.shapes.medium,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                modifier = Modifier.fillMaxWidth(),
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(top = 8.dp),
+                    ) {
+                        node.zoneHint?.let { StatusChip(it, StatusTone.Info) }
+                        node.timingWindow?.let { StatusChip(it, StatusTone.Warning) }
+                    }
+                }
+            }
+            if (timingError) {
+                item {
+                    StatusChip(stringResource(DesignR.string.flow_timing_fail), StatusTone.Error)
+                }
+            }
+            item {
+                SettingsGroup(title = stringResource(DesignR.string.flow_branches_title)) {
+                    if (engine.finished) {
+                        Text(text = stringResource(DesignR.string.flow_finished))
+                        Button(onClick = onRestart, modifier = Modifier.padding(top = 8.dp)) {
+                            Text(text = stringResource(DesignR.string.flow_restart))
+                        }
+                    } else if (options.size <= 1) {
+                        Button(onClick = onAdvanceDefault, modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = options.firstOrNull()?.label
+                                    ?: stringResource(DesignR.string.flow_next),
+                            )
+                        }
+                        if (needsTiming) {
+                            OutlinedButton(
+                                onClick = onAdvanceFailTiming,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
                             ) {
-                                Row(
-                                    Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Text(
-                                        card.card.name,
-                                        modifier = Modifier.weight(1f),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                    Text(
-                                        stringResource(DesignR.string.flow_play_to_field),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.clickable { onPlay(index) },
-                                        style = MaterialTheme.typography.labelLarge,
-                                    )
-                                    Text(
-                                        stringResource(DesignR.string.flow_send_gy),
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.clickable { onGy(index) },
-                                        style = MaterialTheme.typography.labelLarge,
-                                    )
-                                }
+                                Text(text = stringResource(DesignR.string.flow_try_cl2))
                             }
                         }
-                    }
-                    ZoneLabel(stringResource(DesignR.string.flow_zone_gy), state.gy.size)
-                    if (state.gy.isNotEmpty()) {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            state.gy.forEach { MiniCardChip(it.card.name) }
+                    } else {
+                        options.forEach { edge ->
+                            if (edge.isDefault) {
+                                Button(
+                                    onClick = { onChoose(edge) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp),
+                                ) { Text(text = edge.label) }
+                            } else {
+                                OutlinedButton(
+                                    onClick = { onChoose(edge) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp),
+                                ) { Text(text = edge.label) }
+                            }
+                        }
+                        if (needsTiming) {
+                            Text(
+                                text = stringResource(DesignR.string.flow_timing_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun ZoneLabel(title: String, count: Int) {
-    Text("$title · $count", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-}
-
-@Composable
-private fun MiniCardChip(name: String) {
-    Surface(
-        shape = MaterialTheme.shapes.extraSmall,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-    ) {
-        Text(name, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, maxLines = 1)
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun RoleBlock(title: String, names: List<String>) {
-    Text(title, style = MaterialTheme.typography.titleSmall)
-    if (names.isEmpty()) {
-        Text("—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    } else {
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.padding(bottom = DuelSpacing.space2),
-        ) {
-            names.take(24).forEach { name ->
-                Surface(
-                    shape = MaterialTheme.shapes.extraSmall,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ) {
-                    Text(
-                        name,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        maxLines = 1,
-                    )
-                }
+            item {
+                Text(
+                    text = stringResource(
+                        DesignR.string.flow_metrics_detail,
+                        graph.metrics.steps,
+                        graph.metrics.handCost,
+                        graph.metrics.fieldCost,
+                        graph.metrics.risk.name,
+                        graph.metrics.payoff.name,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
+}
+
+@Composable
+private fun kindLabel(kind: FlowKind): String = when (kind) {
+    FlowKind.OPENING -> stringResource(DesignR.string.flow_kind_opening)
+    FlowKind.BAIT_REACTION -> stringResource(DesignR.string.flow_kind_bait)
+    FlowKind.ARTIFACT_ENGINE -> stringResource(DesignR.string.flow_kind_artifact)
+    FlowKind.TRAP_LINE -> stringResource(DesignR.string.flow_kind_trap)
 }

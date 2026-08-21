@@ -1,8 +1,8 @@
 package com.ygochecker.core.model
 
 /**
- * Optional Extra-deck format staples offered by Complete deck.
- * User can pick a subset (or none); only summonable picks are injected.
+ * Format-aware Extra toolbox defaults for Complete deck.
+ * HAT: Rank toolbox only — no Link / modern Synchro bosses.
  */
 object FormatExtraStaples {
     data class Entry(
@@ -31,4 +31,19 @@ object FormatExtraStaples {
     )
 
     val defaultNames: Set<String> = ALL.map { it.name }.toSet()
+
+    /** Defaults offered when opening Complete for [format]. */
+    fun defaultsFor(format: GameFormat): Set<String> = when (format) {
+        GameFormat.HAT, GameFormat.EDISON, GameFormat.GOAT, GameFormat.TENGU ->
+            ALL.filter {
+                it.kind == Kind.XYZ && it.shortLabel in setOf("101", "Dweller", "Tornado", "Castel")
+            }.map { it.name }.toSet()
+        GameFormat.TCG -> defaultNames
+    }
+
+    fun entriesFor(format: GameFormat): List<Entry> = when (format) {
+        GameFormat.HAT, GameFormat.EDISON, GameFormat.GOAT, GameFormat.TENGU ->
+            ALL.filter { it.kind != Kind.LINK && it.shortLabel !in setOf("Zeus", "Bagooska", "Exciton") }
+        GameFormat.TCG -> ALL
+    }
 }

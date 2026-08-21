@@ -53,11 +53,18 @@ abstract class DependencyModule {
     @Binds abstract fun getEffectScript(value: DefaultGetEffectScript): GetEffectScript
     @Binds abstract fun getEffectScripts(value: DefaultGetEffectScripts): GetEffectScripts
     @Binds abstract fun getRelatedCards(value: DefaultGetRelatedCards): GetRelatedCards
+    @Binds abstract fun flowCatalog(value: AssetFlowCatalog): FlowCatalog
+    @Binds abstract fun listFlows(value: DefaultListFlows): ListFlows
+    @Binds abstract fun getFlow(value: DefaultGetFlow): GetFlow
     @Binds abstract fun resolveCardById(value: DefaultResolveCardById): ResolveCardById
     @Binds abstract fun resolveCardByName(value: DefaultResolveCardByName): ResolveCardByName
     @Binds abstract fun getLocalizedCard(value: DefaultGetLocalizedCard): GetLocalizedCard
     @Binds abstract fun accountLinker(value: com.ygochecker.android.auth.AndroidAccountLinker): AccountLinker
     @Binds abstract fun completeDeck(value: SynergyCompleteDeck): CompleteDeck
+    @Binds abstract fun generateDeckFlows(value: DefaultGenerateDeckFlows): GenerateDeckFlows
+    @Binds abstract fun suggestCombosForCard(value: DefaultSuggestCombosForCard): SuggestCombosForCard
+    @Binds abstract fun analyzeDeckCombos(value: DefaultAnalyzeDeckCombos): AnalyzeDeckCombos
+    @Binds abstract fun deckFlowLinks(value: RoomDeckFlowLinkRepository): DeckFlowLinkRepository
     @Binds abstract fun appUpdateRepository(value: com.ygochecker.android.update.HttpAppUpdateRepository): AppUpdateRepository
     @Binds abstract fun checkAppUpdate(value: DefaultCheckAppUpdate): CheckAppUpdate
 
@@ -76,5 +83,6 @@ abstract class DependencyModule {
                 .build()
         @Provides fun deckDao(database: DeckDatabase) = database.decks()
         @Provides fun profileDao(database: DeckDatabase) = database.profile()
+        @Provides fun deckFlowLinkDao(database: DeckDatabase) = database.flowLinks()
     }
 }

@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
@@ -64,6 +65,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -93,6 +98,7 @@ import com.ygochecker.core.common.AppResult
 import com.ygochecker.core.designsystem.CardDetailSheet
 import com.ygochecker.core.designsystem.CardDetailState
 import com.ygochecker.core.designsystem.CollectionPickOption
+import com.ygochecker.core.designsystem.ComboLinePreview
 import com.ygochecker.core.designsystem.DeckMetaRow
 import com.ygochecker.core.designsystem.DuelDeckForgeSplash
 import com.ygochecker.core.designsystem.DuelSpacing
@@ -104,6 +110,7 @@ import com.ygochecker.core.designsystem.ThemedScreenHeader
 import com.ygochecker.core.designsystem.StatusChip
 import com.ygochecker.core.designsystem.StatusTone
 import com.ygochecker.core.designsystem.errorMessage
+import com.ygochecker.core.domain.AnalyzeDeckCombos
 import com.ygochecker.core.domain.CompleteDeck
 import com.ygochecker.core.domain.CreateDecklist
 import com.ygochecker.core.domain.DeleteDecklist
@@ -112,6 +119,7 @@ import com.ygochecker.core.domain.ExportDeckToText
 import com.ygochecker.core.domain.ExportDeckToYdk
 import com.ygochecker.core.domain.ExportDeckToYdke
 import com.ygochecker.core.domain.FormatPreference
+import com.ygochecker.core.domain.GenerateDeckFlows
 import com.ygochecker.core.domain.GetDecklist
 import com.ygochecker.core.domain.GetEffectScript
 import com.ygochecker.core.domain.GetLocalizedCard
@@ -128,8 +136,11 @@ import com.ygochecker.core.domain.SetCardQuantity
 import com.ygochecker.core.domain.SetDeckCovers
 import com.ygochecker.core.domain.SetDeckPublic
 import com.ygochecker.core.domain.SocialRepository
+import com.ygochecker.core.domain.SuggestCombosForCard
 import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.core.model.Card
+import com.ygochecker.core.model.ComboActionKind
+import com.ygochecker.core.model.ComboLineAdvice
 import com.ygochecker.core.model.DeckCard
 import com.ygochecker.core.model.DeckSection
 import com.ygochecker.core.model.Decklist
@@ -152,6 +163,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class DeckComboReportUi(
+    val lines: List<ComboLinePreview>,
+    val actionCards: List<RelatedCardRef>,
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel class DecklistViewModel @Inject constructor(
     listDecks: ListDecklists,
@@ -166,7 +182,10 @@ import javax.inject.Inject
     private val getScript: GetEffectScript,
     private val getLocalized: GetLocalizedCard,
     private val getRelated: GetRelatedCards,
+    private val suggestCombos: SuggestCombosForCard,
+    private val analyzeDeckCombos: AnalyzeDeckCombos,
     private val completeDeckUseCase: CompleteDeck,
+    private val generateDeckFlows: GenerateDeckFlows,
     private val importText: ImportDeckFromText,
     private val importYdke: ImportDeckFromYdke,
     private val importYdk: ImportDeckFromYdk,
@@ -198,6 +217,8 @@ import javax.inject.Inject
     val io = _io.asStateFlow()
     var detail by mutableStateOf<CardDetailState?>(null)
         private set
+    var comboReport by mutableStateOf<DeckComboReportUi?>(null)
+        private set
     var completeNotice by mutableStateOf<String?>(null)
         private set
     var completeBusy by mutableStateOf(false)
@@ -222,6 +243,39 @@ import javax.inject.Inject
         }
     }
     fun clearCompleteNotice() { completeNotice = null }
+    fun closeComboReport() { comboReport = null }
+    fun analyzeCombos() = viewModelScope.launch {
+        val id = selected.value?.id ?: return@launch
+        completeBusy = true
+        val report = analyzeDeckCombos.invoke(id, format.value)
+        val lines = report.lines.map { toComboPreview(it) }
+        val actions = report.actions
+            .distinctBy { it.cardId }
+            .map { action ->
+                relatedRef(
+                    action.cardId,
+                    when (action.kind) {
+                        ComboActionKind.ADD_RECOVERY -> "combo_recovery"
+                        ComboActionKind.BOOST_COPIES -> "combo_present"
+                        ComboActionKind.ADD_PARTNER -> "combo_missing"
+                    },
+                )
+            }
+        comboReport = DeckComboReportUi(lines = lines, actionCards = actions)
+        completeBusy = false
+    }
+    fun generateFlows() = viewModelScope.launch {
+        val id = selected.value?.id ?: return@launch
+        completeBusy = true
+        when (val result = generateDeckFlows.invoke(id, format.value)) {
+            is AppResult.Ok -> {
+                val n = result.value.linkedFlowIds.size
+                completeNotice = if (n == 0) "flows:0" else "flows:$n"
+            }
+            is AppResult.Err -> completeNotice = "err:${result.error.errorKey}"
+        }
+        completeBusy = false
+    }
     fun completeDeck(
         targetMain: Int,
         targetExtra: Int,
@@ -271,6 +325,7 @@ import javax.inject.Inject
         val fmt = format.value
         val localized = getLocalized.invoke(card.card.id, language.value) ?: card.card
         val script = getScript.invoke(card.card.id)
+        val combos = suggestCombos.invoke(card.card.id, selected.value?.id, fmt)
         detail = CardDetailState(
             card = localized,
             maxCopies = evaluateLegality.maxCopies(card.card.id, fmt),
@@ -279,6 +334,7 @@ import javax.inject.Inject
             effectTags = script?.tags.orEmpty(),
             related = getRelated.invoke(card.card.id, fmt, 36),
             formatLabel = fmt.id.uppercase(),
+            comboLines = combos.map { toComboPreview(it) },
         )
     }
     fun closeDetail() { detail = null }
@@ -319,6 +375,7 @@ import javax.inject.Inject
         val state = detail ?: return
         val localized = getLocalized.invoke(state.card.id, lang) ?: state.card
         val script = getScript.invoke(state.card.id)
+        val combos = suggestCombos.invoke(state.card.id, selected.value?.id, fmt)
         detail = state.copy(
             card = localized,
             maxCopies = evaluateLegality.maxCopies(state.card.id, fmt),
@@ -326,8 +383,55 @@ import javax.inject.Inject
             effectTags = script?.tags.orEmpty(),
             related = getRelated.invoke(state.card.id, fmt, 36),
             formatLabel = fmt.id.uppercase(),
+            comboLines = combos.map { toComboPreview(it) },
         )
     }
+
+    private suspend fun toComboPreview(line: ComboLineAdvice): ComboLinePreview {
+        val keyCards = line.keyCardIds.map { id ->
+            val relation = when {
+                id in line.missingKeyCardIds -> "combo_missing"
+                else -> "combo_present"
+            }
+            relatedRef(id, relation)
+        } + line.actions
+            .filter { it.kind == ComboActionKind.ADD_RECOVERY }
+            .map { relatedRef(it.cardId, "combo_recovery") }
+            .distinctBy { it.id }
+            .filter { ref -> line.keyCardIds.none { it == ref.id } }
+        val tips = buildList {
+            for (choke in line.chokes) {
+                add("Choke (step ${choke.stepIndex + 1}): ${choke.reason}")
+            }
+            for (action in line.actions.take(5)) {
+                val prefix = when (action.kind) {
+                    ComboActionKind.BOOST_COPIES -> "Raise to ${action.suggestedCopies}×"
+                    else -> "Add ${action.suggestedCopies}×"
+                }
+                add("$prefix — ${action.reason}")
+            }
+        }
+        return ComboLinePreview(
+            flowId = line.flowId,
+            title = line.title,
+            tags = line.tags,
+            presentCount = line.presentKeyCount,
+            keyCount = line.keyCount,
+            keyCards = keyCards,
+            tips = tips,
+        )
+    }
+
+    private suspend fun relatedRef(cardId: Int, relation: String): RelatedCardRef {
+        val card = getLocalized.invoke(cardId, language.value)
+        return RelatedCardRef(
+            id = cardId,
+            name = card?.name ?: "Card $cardId",
+            relation = relation,
+            score = 3.0,
+        )
+    }
+
     fun syncDetailQuantity(deck: Decklist?) {
         val current = detail ?: return
         val qty = deck?.cards?.firstOrNull { it.card.id == current.card.id }?.quantity ?: 0
@@ -418,6 +522,14 @@ import javax.inject.Inject
                     parts.getOrNull(5)?.toIntOrNull() ?: 0,
                 )
             }
+            raw.startsWith("flows:") -> {
+                val n = raw.removePrefix("flows:").toIntOrNull() ?: 0
+                if (n == 0) {
+                    context.getString(DesignR.string.editor_generate_flows_none)
+                } else {
+                    context.getString(DesignR.string.editor_generate_flows_done, n)
+                }
+            }
             raw.startsWith("err:") -> context.getString(
                 com.ygochecker.core.designsystem.errorStringResource(raw.removePrefix("err:")),
             )
@@ -441,6 +553,8 @@ import javax.inject.Inject
             onRename = vm::rename,
             onSetPublic = { public -> selected?.let { vm.setVisibility(it.id, public) } },
             onCompleteDeck = vm::completeDeck,
+            onGenerateFlows = vm::generateFlows,
+            onAnalyzeCombos = vm::analyzeCombos,
             completeBusy = vm.completeBusy,
         )
         SnackbarHost(
@@ -466,6 +580,14 @@ import javax.inject.Inject
     }
     if (io.importOpen) DeckImportSheet(io.busy, io.error, vm::closeIo, vm::import)
     if (io.exportOpen) DeckExportSheet(vm::export, vm::copied, vm::closeIo)
+    vm.comboReport?.let { report ->
+        DeckComboReportSheet(
+            report = report,
+            onDismiss = vm::closeComboReport,
+            onOpen = vm::openRelated,
+            onAdd = vm::addRelated,
+        )
+    }
     var saveCollectionOpen by remember { mutableStateOf(false) }
     val collections by vm.collections.collectAsStateWithLifecycle()
     vm.detail?.let { state ->
@@ -664,6 +786,8 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
     onRename: (String) -> Unit,
     onSetPublic: (Boolean) -> Unit,
     onCompleteDeck: (Int, Int, Int, Set<String>) -> Unit,
+    onGenerateFlows: () -> Unit,
+    onAnalyzeCombos: () -> Unit,
     completeBusy: Boolean,
 ) {
     var section by remember { mutableStateOf(DeckSection.MAIN) }
@@ -674,8 +798,8 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
     var targetMain by remember { mutableStateOf("40") }
     var targetExtra by remember { mutableStateOf("15") }
     var targetSide by remember { mutableStateOf("15") }
-    var selectedStaples by remember {
-        mutableStateOf(FormatExtraStaples.defaultNames)
+    var selectedStaples by remember(format) {
+        mutableStateOf(FormatExtraStaples.defaultsFor(format))
     }
     var renameDraft by remember(deck.name) { mutableStateOf(deck.name) }
     val backDescription = stringResource(DesignR.string.editor_back)
@@ -796,7 +920,7 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         TextButton({
-                            selectedStaples = FormatExtraStaples.defaultNames
+                            selectedStaples = FormatExtraStaples.defaultsFor(format)
                         }) { Text(stringResource(DesignR.string.editor_complete_staples_all)) }
                         TextButton({
                             selectedStaples = emptySet()
@@ -806,7 +930,7 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        FormatExtraStaples.ALL.forEach { entry ->
+                        FormatExtraStaples.entriesFor(format).forEach { entry ->
                             val on = entry.name in selectedStaples
                             FilterChip(
                                 selected = on,
@@ -887,6 +1011,18 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
                             text = { Text(stringResource(DesignR.string.editor_complete_deck)) },
                             leadingIcon = { Icon(Icons.Default.AutoAwesome, null) },
                             onClick = { menuOpen = false; completeOpen = true },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(DesignR.string.editor_generate_flows)) },
+                            leadingIcon = { Icon(Icons.Default.AccountTree, null) },
+                            onClick = { menuOpen = false; onGenerateFlows() },
+                            enabled = !completeBusy,
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(DesignR.string.editor_analyze_combos)) },
+                            leadingIcon = { Icon(Icons.Default.AutoAwesome, null) },
+                            onClick = { menuOpen = false; onAnalyzeCombos() },
+                            enabled = !completeBusy,
                         )
                         DropdownMenuItem(
                             text = {
@@ -1079,3 +1215,102 @@ private fun sectionLabel(section: DeckSection): String = stringResource(
         DeckSection.SIDE -> DesignR.string.editor_section_side
     },
 )
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeckComboReportSheet(
+    report: DeckComboReportUi,
+    onDismiss: () -> Unit,
+    onOpen: (RelatedCardRef) -> Unit,
+    onAdd: (RelatedCardRef) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = DuelSpacing.space4)
+                .padding(bottom = DuelSpacing.space4)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+        ) {
+            Text(
+                stringResource(DesignR.string.editor_combo_report_title),
+                style = MaterialTheme.typography.titleLarge,
+            )
+            if (report.lines.isEmpty()) {
+                Text(
+                    stringResource(DesignR.string.editor_combo_report_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                if (report.actionCards.isNotEmpty()) {
+                    Text(
+                        stringResource(DesignR.string.editor_combo_report_actions),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    report.actionCards.forEach { ref ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpen(ref) },
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                ref.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            FilledTonalIconButton(onClick = { onAdd(ref) }) {
+                                Icon(Icons.Default.Add, stringResource(DesignR.string.detail_related_add))
+                            }
+                        }
+                    }
+                    HorizontalDivider()
+                }
+                Text(
+                    stringResource(DesignR.string.editor_combo_report_lines),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                report.lines.forEach { line ->
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            Modifier.padding(DuelSpacing.space3),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(line.title, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                stringResource(
+                                    DesignR.string.detail_combo_coverage,
+                                    line.presentCount,
+                                    line.keyCount,
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            line.tips.take(4).forEach { tip ->
+                                Text(
+                                    tip,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(DuelSpacing.space2))
+        }
+    }
+}

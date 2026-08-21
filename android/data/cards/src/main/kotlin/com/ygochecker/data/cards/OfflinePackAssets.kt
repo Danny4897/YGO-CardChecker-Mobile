@@ -14,6 +14,8 @@ internal object OfflinePackAssets {
     const val SCRIPTS_HAT = "offline-pack/scripts-hat.json.gz"
     const val RELATED_HAT = "offline-pack/related-hat.json.gz"
     const val SYNERGIES = "offline-pack/synergies-manual.json.gz"
+    const val FLOWS_HAT = "offline-pack/flows-hat.json"
+    const val CARD_ROLES_HAT = "offline-pack/card-roles-hat.json"
     const val PACK_VERSION = "hat-offline-v3-scripts-no-lua"
 
     private const val TAG = "OfflinePackAssets"

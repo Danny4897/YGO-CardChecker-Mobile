@@ -343,6 +343,29 @@ class DefaultGetRelatedCards @Inject constructor(
     }
 }
 
+/** Curated HAT (and future format) decision trees — TrainMyMat-style Flow. */
+interface FlowCatalog {
+    suspend fun list(format: GameFormat): List<FlowSummary>
+    suspend fun get(flowId: String): FlowGraph?
+    suspend fun graphs(format: GameFormat): List<FlowGraph>
+    fun rolesFor(cardId: Int, format: GameFormat): List<FormatCardRole>
+    fun allRoles(format: GameFormat): List<FormatCardRole>
+}
+
+fun interface ListFlows {
+    suspend fun invoke(format: GameFormat): List<FlowSummary>
+}
+class DefaultListFlows @Inject constructor(private val catalog: FlowCatalog) : ListFlows {
+    override suspend fun invoke(format: GameFormat) = catalog.list(format)
+}
+
+fun interface GetFlow {
+    suspend fun invoke(flowId: String): FlowGraph?
+}
+class DefaultGetFlow @Inject constructor(private val catalog: FlowCatalog) : GetFlow {
+    override suspend fun invoke(flowId: String) = catalog.get(flowId)
+}
+
 /** Local catalog first, then YGOPRODeck by id (OCR passcode path). */
 fun interface ResolveCardById {
     suspend fun invoke(id: Int): Card?
