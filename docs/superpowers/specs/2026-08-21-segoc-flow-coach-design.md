@@ -2,7 +2,9 @@
 
 **Branch:** `refactor/hat-flow-trainmymat-boost` (rebase onto `main` first — see Rebase plan)
 **Builds on:** `docs/superpowers/specs/2026-08-16-hat-flow-trainmymat-design.md` (ComboAssist/FlowModels/GenerateDeckFlows — reused, not replaced)
-**Reference verified against:** real EDOPro-family Lua card scripts in `C:\Games\MDPro3\Data\script_extract\script\` (13,527 files) — same script family the existing `has_ss` extraction pipeline already regexes.
+**Reference verified against:** real EDOPro-family Lua card scripts in `C:\Games\MDPro3\Data\script_extract\script\` (13,527 files), cross-checked against the project's own local cache at `ygo-card-checker/tools/card-knowledge-db/mdpro-scripts/` (13,523 files — effectively full-catalog coverage, already on disk, no re-extraction needed).
+
+**Correction from an earlier draft of this spec:** the whole-catalog per-card knowledge the app displays (`EffectScriptEntity.tagsCsv`/`rolesCsv`, used by Search/Decklist filters) comes from a **remote** JSON (`YgoProDeckClient.EFFECT_SCRIPTS_URL`, hard-coded to `raw.githubusercontent.com/Gabriele-Vantaggiato/ygo-card-checker/...`) — a **different developer's repository**, not one this project controls. `android/tools/reparse_hat_scripts_from_mdpro.py` (Python) only reprocesses the small HAT-curated subset in `android/data/cards/src/main/assets/offline-pack/scripts-hat.json.gz`, and is a secondary tool kept "in sync manually" with the real, whole-catalog-capable parser: `ygo-card-checker/tools/card-knowledge-db/src/mdpro-lua-parser.ts` (TypeScript — `parseMdproLua`/`mdproToEffectScript`, invoked by `build-effect-scripts.ts`/`import-mdpro-scripts.ts` in the same directory), which already runs the same style of structural Lua regex over the full local script cache. SEGOC extraction is added there, in TypeScript, not in the Python script — and its output ships as a **new, self-hosted bundled asset** (see below), not by touching the external `EFFECT_SCRIPTS_URL` data we don't control.
 
 ## Goal
 
@@ -26,11 +28,11 @@ Expect real conflicts in `FlowScreen.kt` (redesign touched nothing there, so thi
 - `FlowModels.kt` — `FlowGraph{nodes, edges}`, `FlowNode.timingWindow: String?` (free-text label today). Unchanged structurally; new SEGOC data is additive, not a replacement of this model.
 - `GenerateDeckFlows.kt`/`ComboAssistUseCases.kt` — derive suggestions from `flows-hat.json`/`card-roles-hat.json`. Unchanged — HAT curated flows stay available as a sub-section (see UI below), they're just no longer the tab's main view.
 - `EffectMechanicTags.kt`/`EffectTextProfiler.kt` — existing tag vocabulary derived from effect **text** (not Lua). Unchanged; the new SEGOC tags are a parallel, Lua-derived vocabulary, additive to `Card`/`CardEntity`, not a replacement.
-- `android/tools/reparse_hat_scripts_from_mdpro.py` — the real Lua→JSON pipeline already in production for `has_ss`. Extended (see below), not replaced.
+- `ygo-card-checker/tools/card-knowledge-db/src/mdpro-lua-parser.ts` and its `build-effect-scripts.ts`/`import-mdpro-scripts.ts` callers — the real, whole-catalog-capable Lua→JSON pipeline. New SEGOC extraction is added alongside it (see below), not replacing its existing role/timing/step parsing. `android/tools/reparse_hat_scripts_from_mdpro.py` (Python) stays untouched — it's a narrower, HAT-only reprocessing tool, not the right extension point for whole-catalog SEGOC data.
 
 ## New data: per-card SEGOC tags
 
-Four new fields, derived from the same Lua script library the existing pipeline already reads (`android/tools/_lua_samples/`-style source, same regex approach as `has_ss`):
+Four new fields, derived from the local Lua script cache (`ygo-card-checker/tools/card-knowledge-db/mdpro-scripts/`, 13,523 files) via the same structural-regex approach `mdpro-lua-parser.ts` already uses for role/timing extraction:
 
 ```kotlin
 enum class SegocEffectType { ACTIVATE, IGNITION, TRIGGER, QUICK, CONTINUOUS, NONE }
@@ -81,7 +83,9 @@ No effect block (vanilla)              → not applicable (null)
 
 **This is a heuristic, not certainty** — real Missed Timing rulings occasionally depend on card-specific text nuances beyond what a flag captures. `SegocProfile.missedTimingRisk` must always be presented in the UI as "generally must activate immediately (verify wording)" phrasing, never as an absolute ruling. Real example fixture from MDPro3 worth using as a regression test: `c11662742.lua` (3 `TRIGGER_F` blocks, no `DELAY` on any — all three should flag `missedTimingRisk = true`).
 
-**Extraction script**: extend `android/tools/reparse_hat_scripts_from_mdpro.py` — it already parses per-card Lua and already needs per-block awareness (a card can be simultaneously a normal-summon monster with an ignition effect AND have a separate trigger block; today's `has_ss` regex is whole-file and looser, this doesn't need to change, but the new fields do need block-scoped parsing). Output joins the existing offline-pack JSON build the same way `has_ss` does today.
+**Extraction script**: new TypeScript module `ygo-card-checker/tools/card-knowledge-db/src/segoc-parser.ts`, following `mdpro-lua-parser.ts`'s existing structural-regex style (per-effect-block scanning is new — today's `parseMdproLua` regexes whole-file — the SEGOC fields are the first thing in this pipeline that need per-block scoping, since a card can mix "when"/"if" triggers or Trigger+Ignition blocks). A new build script `build-segoc-profiles.ts` (sibling of the existing `build-effect-scripts.ts`) runs it over every file in the local `mdpro-scripts/` cache (13,523 files, already on disk — no re-extraction from `C:\Games\MDPro3` needed for routine rebuilds) and writes one compact whole-catalog JSON, `segoc-profiles.json`, keyed by card passcode.
+
+**Delivery to the app**: gzip `segoc-profiles.json` and copy it into `android/data/cards/src/main/assets/offline-pack/segoc-profiles.json.gz` as a **new bundled asset** — same pattern as `cards-hat.json.gz`/`related-hat.json.gz`, not a remote fetch. At whole-catalog scale (13.5k cards × ~4 small fields) this is expected to land well under 300KB gzipped, in line with the existing bundled packs' sizes (428KB–809KB). Loaded into a new Room table (`segoc_profiles`, `cardId` PK) at the same `ensureBundledKnowledge()` step that loads the other bundled packs today — additive, no change to the existing `EFFECT_SCRIPTS_URL`/HAT-scripts/card-text-enrichment paths for `EffectScriptEntity`.
 
 ## New logic: simultaneous-trigger detector
 
@@ -116,6 +120,6 @@ Reusing `HomeInsets`/`ThemedScreenHeader`/existing card-row patterns from the re
 
 ## Verification
 
-- Unit tests on the extended Python extraction script against real fixture scripts (including `c11662742.lua`-style multi-trigger-block cases) before touching Kotlin.
-- Unit tests on `SegocProfile` derivation logic and the simultaneous-trigger pair detector (`core:model`/`core:domain`, JUnit4, matching this repo's existing test conventions).
-- Manual on-device check of the new Flow tab view with a real decklist (per the pattern established in the Cyber HUD redesign session — build, install on emulator/device, screenshot, don't just trust `assembleDebug`).
+- Unit tests on `segoc-parser.ts` against real fixture scripts (including `c11662742.lua`-style multi-trigger-block cases), matching this project's existing `effect-parser.test.ts` conventions, before touching Kotlin.
+- Unit tests on the Kotlin-side `SegocProfile` parsing/derivation logic and the simultaneous-trigger pair detector (`core:model`/`core:domain`, JUnit4, matching this repo's existing test conventions).
+- Manual on-device check of the new Flow tab view with a real decklist, and install on an emulator/device before every commit that touches app code — per this project's established workflow rule, not just a final pass (see project feedback memory `feedback-emulator-before-commit`).
