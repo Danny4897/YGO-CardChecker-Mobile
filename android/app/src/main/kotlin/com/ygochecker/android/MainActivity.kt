@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -68,7 +69,7 @@ import com.ygochecker.android.update.AppUpdateHost
 import com.ygochecker.android.update.AppUpdateViewModel
 import com.ygochecker.core.designsystem.DuelEntranceSplash
 import com.ygochecker.core.designsystem.DuelSpacing
-import com.ygochecker.core.designsystem.LocalOpenDrawer
+import com.ygochecker.core.designsystem.LocalOpenSettings
 import com.ygochecker.core.designsystem.R as DesignR
 import com.ygochecker.core.designsystem.YgoCheckerTheme
 import com.ygochecker.core.domain.AccountLinker
@@ -187,37 +188,21 @@ private fun LocalizedResources(language: AppLanguage, content: @Composable () ->
 
 private data class Destination(val route: String, val label: Int, val icon: ImageVector)
 
-/** Primary tabs — swipeable pager. Profile/Settings/Overlay live in the drawer. */
+/** Primary tabs — swipeable pager, all 5 get equal billing on the bottom bar.
+ * Settings (and Overlay, reached from within Settings) live behind the gear
+ * icon in the top bar instead — see LocalOpenSettings. */
 private val primaryTabs = listOf(
+    Destination("home", DesignR.string.nav_home, Icons.Default.Home),
     Destination("search", DesignR.string.nav_search, Icons.Default.Search),
     Destination("decks", DesignR.string.nav_decks, Icons.Default.Style),
     Destination("flow", DesignR.string.nav_flow, Icons.Default.AccountTree),
-    Destination("home", DesignR.string.nav_home, Icons.Default.Home),
-)
-
-/**
- * Overlay is a power-user MDPRO3 companion (screen capture + OCR) — it doesn't need
- * equal billing with Search/Decks/Flow/Home, so it lives here instead of the bottom bar.
- */
-private val drawerDestinations = listOf(
     Destination("profile", DesignR.string.nav_profile, Icons.Default.Person),
-    Destination("settings", DesignR.string.nav_settings, Icons.Default.Settings),
-    Destination("overlay", DesignR.string.nav_overlay, Icons.Default.Visibility),
 )
 
-/**
- * Modern shell:
- * - Bottom bar stays fixed; drawer opens **above** it (does not cover the nav).
- * - Primary destinations use a horizontal pager (swipe between tabs).
- * - Profile / Settings / Overlay stay in the account drawer.
- */
 @Composable
 private fun AppShell(onCheckUpdates: () -> Unit = {}) {
     var section by rememberSaveable { mutableStateOf("tabs") }
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
     val pagerState = rememberPagerState(
         initialPage = tabIndex.coerceIn(0, primaryTabs.lastIndex),
         pageCount = { primaryTabs.size },
@@ -240,17 +225,15 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
     fun goTabs(index: Int) {
         section = "tabs"
         tabIndex = index.coerceIn(0, primaryTabs.lastIndex)
-        scope.launch { drawerState.close() }
     }
 
-    // Drawer destinations (Profile/Settings/Overlay) have no back-stack entry of their own —
-    // without this, the system back button exits the app instead of returning to the tabs.
+    // Settings/Overlay have no back-stack entry of their own — without this,
+    // the system back button exits the app instead of returning to the tabs.
     BackHandler(enabled = section != "tabs") {
         section = "tabs"
     }
 
-    CompositionLocalProvider(LocalOpenDrawer provides openDrawer) {
-        // Scaffold owns the bottom bar so the drawer cannot paint over it.
+    CompositionLocalProvider(LocalOpenSettings provides { section = "settings" }) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
@@ -278,84 +261,13 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
                 }
             },
         ) { padding ->
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                drawerContent = {
-                    ModalDrawerSheet(
-                        drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ) {
-                        Column(Modifier.padding(bottom = DuelSpacing.space4)) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Column(Modifier.padding(DuelSpacing.space4)) {
-                                    Image(
-                                        painter = painterResource(R.drawable.ic_launcher_foreground),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(56.dp),
-                                        contentScale = ContentScale.Fit,
-                                    )
-                                    Text(
-                                        stringResource(DesignR.string.splash_brand),
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(top = DuelSpacing.space2),
-                                    )
-                                    Text(
-                                        stringResource(DesignR.string.nav_drawer_tagline),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            Text(
-                                stringResource(DesignR.string.nav_drawer_account),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(
-                                    start = DuelSpacing.space4,
-                                    end = DuelSpacing.space4,
-                                    top = DuelSpacing.space4,
-                                    bottom = DuelSpacing.space2,
-                                ),
-                            )
-                            drawerDestinations.forEach { destination ->
-                                val label = stringResource(destination.label)
-                                val selected = section == destination.route
-                                NavigationDrawerItem(
-                                    label = {
-                                        Text(label, style = MaterialTheme.typography.titleSmall)
-                                    },
-                                    selected = selected,
-                                    onClick = {
-                                        scope.launch { drawerState.close() }
-                                        section = destination.route
-                                    },
-                                    icon = { Icon(destination.icon, label) },
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
-                                    colors = NavigationDrawerItemDefaults.colors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        unselectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    ),
-                                )
-                            }
-                        }
-                    }
-                },
-            ) {
+            Box(Modifier.fillMaxSize().padding(padding)) {
                 when (section) {
-                    "profile" -> ProfileRoute()
                     "settings" -> SettingsRoute(
                         onCheckUpdates = onCheckUpdates,
                         installedVersionName = BuildConfig.VERSION_NAME,
                         installedVersionCode = BuildConfig.VERSION_CODE,
+                        onOpenOverlay = { section = "overlay" },
                     )
                     "overlay" -> OverlayRoute()
                     else -> HorizontalPager(
@@ -365,14 +277,15 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
                         key = { primaryTabs[it].route },
                     ) { page ->
                         when (primaryTabs[page].route) {
+                            "home" -> HomeRoute(
+                                onOpenSearch = { goTabs(primaryTabs.indexOfFirst { it.route == "search" }) },
+                                onOpenDecks = { goTabs(primaryTabs.indexOfFirst { it.route == "decks" }) },
+                                onOpenFlow = { goTabs(primaryTabs.indexOfFirst { it.route == "flow" }) },
+                            )
                             "search" -> SearchRoute()
                             "decks" -> DecksRoute()
                             "flow" -> FlowRoute()
-                            "home" -> HomeRoute(
-                                onOpenSearch = { goTabs(0) },
-                                onOpenDecks = { goTabs(1) },
-                                onOpenFlow = { goTabs(2) },
-                            )
+                            "profile" -> ProfileRoute()
                         }
                     }
                 }

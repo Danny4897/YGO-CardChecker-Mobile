@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -44,8 +44,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-/** Opens the app navigation drawer (Profile / Settings). Provided by AppShell. */
-val LocalOpenDrawer = compositionLocalOf<(() -> Unit)?> { null }
+/** Navigates to Settings. Provided by AppShell. */
+val LocalOpenSettings = compositionLocalOf<(() -> Unit)?> { null }
 
 enum class StatusTone { Neutral, Success, Warning, Error, Info }
 
@@ -121,10 +121,10 @@ fun ThemedScreenHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space2),
             ) {
-                val openDrawer = LocalOpenDrawer.current
-                if (openDrawer != null) {
-                    IconButton(onClick = openDrawer) {
-                        Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.nav_menu))
+                val openSettings = LocalOpenSettings.current
+                if (openSettings != null) {
+                    IconButton(onClick = openSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings))
                     }
                 }
                 Text(
