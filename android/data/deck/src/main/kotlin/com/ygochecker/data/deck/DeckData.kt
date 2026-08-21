@@ -12,6 +12,27 @@ import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@Entity(tableName = "deck_flow_links", primaryKeys = ["deckId", "flowId"])
+data class DeckFlowLinkEntity(
+    val deckId: Long,
+    val flowId: String,
+)
+
+@Dao
+interface DeckFlowLinkDao {
+    @Query("SELECT flowId FROM deck_flow_links WHERE deckId = :deckId ORDER BY flowId")
+    fun observeFlowIds(deckId: Long): Flow<List<String>>
+
+    @Query("SELECT flowId FROM deck_flow_links WHERE deckId = :deckId ORDER BY flowId")
+    suspend fun flowIds(deckId: Long): List<String>
+
+    @Query("DELETE FROM deck_flow_links WHERE deckId = :deckId")
+    suspend fun clearDeck(deckId: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(rows: List<DeckFlowLinkEntity>)
+}
+
 @Entity(tableName = "decks")
 data class DeckEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -53,17 +74,36 @@ data class DeckCardEntity(
     entities = [
         DeckEntity::class,
         DeckCardEntity::class,
+        DeckFlowLinkEntity::class,
         CollectionEntity::class,
         CollectionCardEntity::class,
         FriendEntity::class,
         ReplayEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class DeckDatabase : RoomDatabase() {
     abstract fun decks(): DeckDao
     abstract fun profile(): ProfileDao
+    abstract fun flowLinks(): DeckFlowLinkDao
+}
+
+@Singleton
+class RoomDeckFlowLinkRepository @Inject constructor(
+    private val dao: DeckFlowLinkDao,
+) : DeckFlowLinkRepository {
+    override suspend fun replaceLinks(deckId: Long, flowIds: List<String>) {
+        dao.clearDeck(deckId)
+        if (flowIds.isEmpty()) return
+        dao.insertAll(flowIds.distinct().map { DeckFlowLinkEntity(deckId, it) })
+    }
+
+    override suspend fun flowIdsForDeck(deckId: Long): List<String> = dao.flowIds(deckId)
+
+    override suspend fun clearDeck(deckId: Long) = dao.clearDeck(deckId)
+
+    override fun observeFlowIds(deckId: Long): Flow<List<String>> = dao.observeFlowIds(deckId)
 }
 
 @Singleton class RoomDeckRepository @Inject constructor(

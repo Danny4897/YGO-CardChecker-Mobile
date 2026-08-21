@@ -51,6 +51,17 @@ import coil3.size.Size
 import com.ygochecker.core.model.Card
 import com.ygochecker.core.model.RelatedCardRef
 
+data class ComboLinePreview(
+    val flowId: String,
+    val title: String,
+    val tags: List<String> = emptyList(),
+    val presentCount: Int,
+    val keyCount: Int,
+    val keyCards: List<RelatedCardRef> = emptyList(),
+    /** Choke + consistency tips (authored / engine text). */
+    val tips: List<String> = emptyList(),
+)
+
 data class CardDetailState(
     val card: Card,
     val maxCopies: Int,
@@ -61,6 +72,8 @@ data class CardDetailState(
     /** Format id → max copies for banlist compare row. */
     val banlistByFormat: List<Pair<String, Int>> = emptyList(),
     val formatLabel: String = "",
+    /** Deck-building combo lines for this card (HAT Flow assist). */
+    val comboLines: List<ComboLinePreview> = emptyList(),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -182,6 +195,26 @@ fun CardDetailContent(
         }
         metaRow(card)
         HorizontalDivider()
+        if (state.comboLines.isNotEmpty()) {
+            Text(
+                stringResource(R.string.detail_combo_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                stringResource(R.string.detail_combo_subtitle),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            state.comboLines.forEach { line ->
+                ComboLineCard(
+                    line = line,
+                    onOpen = { ref -> onRelatedOpen?.invoke(ref) },
+                    onAdd = onRelatedAdd,
+                )
+            }
+            HorizontalDivider()
+        }
         Text(
             stringResource(R.string.detail_effect),
             style = MaterialTheme.typography.titleSmall,
@@ -246,6 +279,66 @@ fun CardDetailContent(
     }
 }
 
+@Composable
+private fun ComboLineCard(
+    line: ComboLinePreview,
+    onOpen: (RelatedCardRef) -> Unit,
+    onAdd: ((RelatedCardRef) -> Unit)?,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            Modifier.padding(DuelSpacing.space3),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(line.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (line.tags.isNotEmpty()) {
+                CompactChipRow(line.tags)
+            }
+            Text(
+                stringResource(R.string.detail_combo_coverage, line.presentCount, line.keyCount),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            if (line.keyCards.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.detail_combo_key_cards),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    line.keyCards.forEach { ref ->
+                        RelatedCardTile(
+                            ref = ref,
+                            onOpen = { onOpen(ref) },
+                            onAdd = if (ref.relation == "combo_missing" || ref.relation == "combo_recovery") {
+                                onAdd?.let { add -> { add(ref) } }
+                            } else {
+                                null
+                            },
+                        )
+                    }
+                }
+            }
+            line.tips.forEach { tip ->
+                Text(
+                    tip,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CompactChipRow(labels: List<String>) {
@@ -296,6 +389,9 @@ private fun relationLabel(relation: String): String {
         key.contains("engine") -> R.string.relation_engine
         key.contains("gy") -> R.string.relation_gy
         key.contains("archetype") || key.contains("series") -> R.string.relation_archetype
+        key.contains("combo_missing") -> R.string.relation_combo_missing
+        key.contains("combo_in") || key == "combo_present" -> R.string.relation_combo_present
+        key.contains("combo_recovery") -> R.string.relation_combo_recovery
         key.contains("hat") -> R.string.relation_engine
         key.contains("manual") || key.contains("synergy") -> R.string.relation_synergy
         else -> null

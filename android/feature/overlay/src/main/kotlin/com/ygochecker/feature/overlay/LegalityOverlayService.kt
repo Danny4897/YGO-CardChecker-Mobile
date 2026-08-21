@@ -11,15 +11,19 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
 import android.view.WindowManager
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,11 +58,18 @@ import com.ygochecker.core.designsystem.StatusChip
 import com.ygochecker.core.designsystem.StatusTone
 import com.ygochecker.core.designsystem.YgoCheckerTheme
 import com.ygochecker.core.domain.EvaluateDeckLegality
+import com.ygochecker.core.domain.FlowCatalog
 import com.ygochecker.core.domain.FormatPreference
 import com.ygochecker.core.domain.ResolveCardById
 import com.ygochecker.core.domain.ResolveCardByName
+import com.ygochecker.core.model.AssistTip
 import com.ygochecker.core.model.Card
 import com.ygochecker.core.model.GameFormat
+import com.ygochecker.core.model.LiveResourceTracker
+import com.ygochecker.core.model.ResourceCount
+import com.ygochecker.core.model.TipSeverity
+import com.ygochecker.core.model.TimingRuleEngine
+import com.ygochecker.core.model.TurnOwner
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -70,9 +81,8 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
- * Floating legality HUD over MDPRO3.
- * Optional MediaProjection + ML Kit OCR auto-fills a compact qty/playability check
- * when a card detail is open on screen.
+ * Floating legality + HAT assist HUD over MDPRO3.
+ * Optional MediaProjection + ML Kit OCR auto-fills playability and timing tips.
  */
 @AndroidEntryPoint
 class LegalityOverlayService : LifecycleService() {
@@ -81,6 +91,7 @@ class LegalityOverlayService : LifecycleService() {
     @Inject lateinit var formatPreference: FormatPreference
     @Inject lateinit var resolveById: ResolveCardById
     @Inject lateinit var resolveByName: ResolveCardByName
+    @Inject lateinit var flowCatalog: FlowCatalog
 
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(serviceJob + Dispatchers.Main.immediate)
@@ -94,13 +105,21 @@ class LegalityOverlayService : LifecycleService() {
     private var selected by mutableStateOf<HudSelection?>(null)
     private var format by mutableStateOf(GameFormat.TCG)
     private var autoDetectActive by mutableStateOf(false)
+    private var tips by mutableStateOf<List<AssistTip>>(emptyList())
+    private var whoseTurn by mutableStateOf(TurnOwner.UNKNOWN)
+    private var resourceCounts by mutableStateOf<List<ResourceCount>>(emptyList())
+    private val resourceTracker = LiveResourceTracker()
 
     override fun onCreate() {
         super.onCreate()
         ensureChannel()
         startAsForeground(withProjection = false)
         serviceScope.launch {
-            formatPreference.values.collectLatest { format = it }
+            formatPreference.values.collectLatest { fmt ->
+                format = fmt
+                seedResources(fmt)
+                selected?.let { refreshTips(it.card) }
+            }
         }
         attachOverlay()
     }
@@ -122,6 +141,21 @@ class LegalityOverlayService : LifecycleService() {
         super.onDestroy()
     }
 
+    private fun seedResources(fmt: GameFormat) {
+        val maxById = TimingRuleEngine.KEY_TRACK_IDS.associateWith { id ->
+            legality.maxCopies(id, fmt).coerceIn(0, 3)
+        }
+        resourceTracker.seed(maxById)
+        resourceCounts = resourceTracker.snapshot()
+    }
+
+    private fun refreshTips(card: Card) {
+        val roles = flowCatalog.rolesFor(card.id, format)
+        val cardTips = TimingRuleEngine.tipsFor(card.id, format, roles, whoseTurn)
+        val turnTips = TimingRuleEngine.opponentPriorityTips(whoseTurn)
+        tips = (cardTips + turnTips).distinctBy { it.messageKey }.take(3)
+    }
+
     private fun maybeStartAutoDetect(intent: Intent?) {
         val code = intent?.getIntExtra(EXTRA_PROJECTION_RESULT_CODE, 0) ?: 0
         val data = if (Build.VERSION.SDK_INT >= 33) {
@@ -131,7 +165,6 @@ class LegalityOverlayService : LifecycleService() {
             intent?.getParcelableExtra(EXTRA_PROJECTION_DATA)
         }
         if (code == 0 || data == null) return
-        // API 14+: FGS must already declare MEDIA_PROJECTION before getMediaProjection.
         startAsForeground(withProjection = true)
         if (autoDetect == null) {
             autoDetect = MdproAutoDetectEngine(this, serviceScope) { parsed ->
@@ -155,6 +188,7 @@ class LegalityOverlayService : LifecycleService() {
         val max = legality.maxCopies(card.id, format)
         withContext(Dispatchers.Main.immediate) {
             selected = HudSelection(card, max, autoDetected = true)
+            refreshTips(card)
         }
     }
 
@@ -230,6 +264,17 @@ class LegalityOverlayService : LifecycleService() {
                         selected = selected,
                         format = format,
                         autoDetectActive = autoDetectActive,
+                        tips = tips,
+                        whoseTurn = whoseTurn,
+                        resources = resourceCounts,
+                        onTurnChange = { turn ->
+                            whoseTurn = turn
+                            selected?.let { refreshTips(it.card) }
+                        },
+                        onSpendResource = { id ->
+                            resourceTracker.spend(id)
+                            resourceCounts = resourceTracker.snapshot()
+                        },
                         onClose = { stopSelf() },
                         onDrag = { dx, dy ->
                             params.x = (params.x - dx.toInt()).coerceAtLeast(0)
@@ -282,11 +327,17 @@ class LegalityOverlayService : LifecycleService() {
 
 data class HudSelection(val card: Card, val maxCopies: Int, val autoDetected: Boolean = false)
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LegalityHud(
     selected: HudSelection?,
     format: GameFormat,
     autoDetectActive: Boolean,
+    tips: List<AssistTip>,
+    whoseTurn: TurnOwner,
+    resources: List<ResourceCount>,
+    onTurnChange: (TurnOwner) -> Unit,
+    onSpendResource: (Int) -> Unit,
     onClose: () -> Unit,
     onDrag: (Float, Float) -> Unit,
 ) {
@@ -296,7 +347,7 @@ private fun LegalityHud(
         shadowElevation = 8.dp,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier
-            .widthIn(max = if (selected != null) 240.dp else 200.dp)
+            .widthIn(max = if (selected != null || tips.isNotEmpty()) 280.dp else 200.dp)
             .pointerInput(Unit) {
                 detectDragGestures { change, drag ->
                     change.consume()
@@ -326,6 +377,24 @@ private fun LegalityHud(
                 }
             }
 
+            if (format == GameFormat.HAT) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    TurnChip(
+                        label = stringResource(DesignR.string.overlay_turn_you),
+                        selected = whoseTurn == TurnOwner.YOU,
+                        onClick = { onTurnChange(TurnOwner.YOU) },
+                    )
+                    TurnChip(
+                        label = stringResource(DesignR.string.overlay_turn_opp),
+                        selected = whoseTurn == TurnOwner.OPPONENT,
+                        onClick = { onTurnChange(TurnOwner.OPPONENT) },
+                    )
+                }
+            }
+
             selected?.let { sel ->
                 val (label, tone) = when (sel.maxCopies) {
                     0 -> stringResource(DesignR.string.legality_unavailable) to StatusTone.Error
@@ -337,6 +406,7 @@ private fun LegalityHud(
                     sel.card.name,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 2,
+                    modifier = Modifier.padding(top = 6.dp),
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space1),
@@ -365,9 +435,92 @@ private fun LegalityHud(
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
             )
+
+            if (tips.isNotEmpty()) {
+                Text(
+                    stringResource(DesignR.string.overlay_tips_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                tips.forEach { tip ->
+                    val tone = when (tip.severity) {
+                        TipSeverity.CRITICAL -> StatusTone.Error
+                        TipSeverity.WARN -> StatusTone.Warning
+                        TipSeverity.INFO -> StatusTone.Info
+                    }
+                    val body = tip.detail ?: tipMessage(tip.messageKey)
+                    Text(
+                        text = body,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = when (tone) {
+                            StatusTone.Error -> MaterialTheme.colorScheme.error
+                            StatusTone.Warning -> MaterialTheme.colorScheme.tertiary
+                            else -> MaterialTheme.colorScheme.onSurface
+                        },
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
+
+            if (format == GameFormat.HAT && resources.isNotEmpty()) {
+                Text(
+                    stringResource(DesignR.string.overlay_resources_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Text(
+                    stringResource(DesignR.string.overlay_resources_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    resources.forEach { res ->
+                        StatusChip(
+                            label = "${res.label} ${res.remaining}/${res.max}",
+                            tone = when {
+                                res.remaining == 0 -> StatusTone.Error
+                                res.remaining == 1 -> StatusTone.Warning
+                                else -> StatusTone.Neutral
+                            },
+                            modifier = Modifier.clickable { onSpendResource(res.cardId) },
+                        )
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun TurnChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+    )
+}
+
+@Composable
+private fun tipMessage(key: String): String {
+    val id = when (key) {
+        "overlay_tip_hand_cl1" -> DesignR.string.overlay_tip_hand_cl1
+        "overlay_tip_mst_hand" -> DesignR.string.overlay_tip_mst_hand
+        "overlay_tip_sanctum_wiretap" -> DesignR.string.overlay_tip_sanctum_wiretap
+        "overlay_tip_sanctum_window" -> DesignR.string.overlay_tip_sanctum_window
+        "overlay_tip_artifact_op" -> DesignR.string.overlay_tip_artifact_op
+        "overlay_tip_wiretap_sanctum" -> DesignR.string.overlay_tip_wiretap_sanctum
+        "overlay_tip_trap_priority" -> DesignR.string.overlay_tip_trap_priority
+        "overlay_tip_opp_hold" -> DesignR.string.overlay_tip_opp_hold
+        "overlay_tip_opp_priority" -> DesignR.string.overlay_tip_opp_priority
+        "overlay_tip_ruling_notes" -> DesignR.string.overlay_tip_ruling_notes
+        else -> DesignR.string.overlay_tip_ruling_notes
+    }
+    return stringResource(id)
 }
 
 /** Minimal lifecycle + SavedState for ComposeView hosted in a Service window. */

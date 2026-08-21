@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "formatId": "hat",
+  "roles": [
+    { "cardId": 91812389, "role": "ENGINE_STARTER", "priority": 10, "rulingNotes": "NS search Hole trap.", "partnerIds": [29616900, 29401950] },
+    { "cardId": 91812389, "role": "SEARCHER", "priority": 9, "partnerIds": [29616900] },
+    { "cardId": 9634146, "role": "ENGINE_STARTER", "priority": 10, "rulingNotes": "Flip search Geargia.", "partnerIds": [9239806] },
+    { "cardId": 9239806, "role": "EXTENDER", "priority": 8, "partnerIds": [9634146] },
+    { "cardId": 69207766, "role": "ENGINE_STARTER", "priority": 10, "rulingNotes": "Discard water; search L4 Mermail.", "partnerIds": [22416209] },
+    { "cardId": 16435215, "role": "ENGINE_STARTER", "priority": 8, "rulingNotes": "Kuribandit mill / dig for traps." },
+    { "cardId": 68535320, "role": "BAIT", "priority": 9, "rulingNotes": "Must be destroyed as CL1 to keep timing.", "partnerIds": [95929069] },
+    { "cardId": 68535320, "role": "REMOVAL", "priority": 8, "partnerIds": [95929069] },
+    { "cardId": 95929069, "role": "BAIT", "priority": 9, "rulingNotes": "Must be destroyed as CL1 to keep timing.", "partnerIds": [68535320] },
+    { "cardId": 95929069, "role": "REMOVAL", "priority": 8, "partnerIds": [68535320] },
+    { "cardId": 5318639, "role": "REMOVAL", "priority": 7, "rulingNotes": "MST — do not force Hand as CL2." },
+    { "cardId": 54447022, "role": "RECYCLE", "priority": 6, "rulingNotes": "Soul Charge — HAT power play; watch LP and traps." },
+    { "cardId": 12444060, "role": "INTERRUPT", "priority": 10, "rulingNotes": "Counter Trap; vulnerable to Wiretap.", "partnerIds": [20292186, 34507039] },
+    { "cardId": 12444060, "role": "TRAP_LINE", "priority": 10, "partnerIds": [20292186] },
+    { "cardId": 21497230, "role": "INTERRUPT", "priority": 8, "partnerIds": [20292186] },
+    { "cardId": 20292186, "role": "REMOVAL", "priority": 9, "rulingNotes": "OP-turn SS destroy.", "partnerIds": [12444060] },
+    { "cardId": 50078509, "role": "INTERRUPT", "priority": 8, "partnerIds": [78474168] },
+    { "cardId": 50078509, "role": "TRAP_LINE", "priority": 8 },
+    { "cardId": 78474168, "role": "INTERRUPT", "priority": 7, "rulingNotes": "GY reactivation matters in long games." },
+    { "cardId": 78474168, "role": "TRAP_LINE", "priority": 7 },
+    { "cardId": 29616900, "role": "TRAP_LINE", "priority": 9, "rulingNotes": "Vs Synchro/Xyz summons." },
+    { "cardId": 29616900, "role": "INTERRUPT", "priority": 9 },
+    { "cardId": 34507039, "role": "SIDE_TECH", "priority": 9, "rulingNotes": "Wiretap — answers Sanctum and other counters." },
+    { "cardId": 6579928, "role": "SIDE_TECH", "priority": 8, "rulingNotes": "Debunk — choke Mermail/Fire Fist searches." },
+    { "cardId": 93332803, "role": "SIDE_TECH", "priority": 7, "rulingNotes": "System Down — Machine matchups (Geargia)." },
+    { "cardId": 99173029, "role": "SIDE_TECH", "priority": 7, "rulingNotes": "Soul Release — GY hate." },
+    { "cardId": 50323155, "role": "SIDE_TECH", "priority": 8, "rulingNotes": "Black Horn of Heaven." }
+  ]
+}

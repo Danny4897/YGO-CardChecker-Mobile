@@ -9,6 +9,9 @@ import com.ygochecker.core.model.DeckLegality
 import com.ygochecker.core.model.DeckSection
 import com.ygochecker.core.model.Decklist
 import com.ygochecker.core.model.EffectScriptSummary
+import com.ygochecker.core.model.FlowGraph
+import com.ygochecker.core.model.FlowSummary
+import com.ygochecker.core.model.FormatCardRole
 import com.ygochecker.core.model.GameFormat
 import com.ygochecker.core.model.RelatedCardRef
 import com.ygochecker.core.model.SearchFilters
@@ -20,6 +23,14 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+private object EmptyFlowCatalog : FlowCatalog {
+    override suspend fun list(format: GameFormat): List<FlowSummary> = emptyList()
+    override suspend fun get(flowId: String): FlowGraph? = null
+    override suspend fun graphs(format: GameFormat): List<FlowGraph> = emptyList()
+    override fun rolesFor(cardId: Int, format: GameFormat): List<FormatCardRole> = emptyList()
+    override fun allRoles(format: GameFormat): List<FormatCardRole> = emptyList()
+}
 
 class SynergyCompleteDeckTest {
     private val seed = Card(1, "Elemental HERO Stratos", "Effect Monster", description = "If this card is Normal or Special Summoned: You can add 1 \"HERO\" monster from your Deck to your hand.")
@@ -97,6 +108,7 @@ class SynergyCompleteDeckTest {
             scripts = GetEffectScripts { emptyList() },
             legality = AlwaysLegal,
             resolve = ResolveCardById { all[it] },
+            flowCatalog = EmptyFlowCatalog,
         )
         useCase.invoke(1L, 10, 6, 0, GameFormat.TCG)
         val extra = decks.current.cards.filter { it.section == DeckSection.EXTRA }
@@ -138,6 +150,7 @@ class SynergyCompleteDeckTest {
             },
             legality = AlwaysLegal,
             resolve = ResolveCardById { catalog[it] },
+            flowCatalog = EmptyFlowCatalog,
         )
 
         val plan = useCase.invoke(1L, 8, 3, 0, GameFormat.TCG).valueOrNull!!
@@ -170,6 +183,7 @@ class SynergyCompleteDeckTest {
             scripts = GetEffectScripts { emptyList() },
             legality = AlwaysLegal,
             resolve = ResolveCardById { cards[it] },
+            flowCatalog = EmptyFlowCatalog,
         )
         useCase.invoke(1L, 5, 2, 0, GameFormat.TCG)
         val extra = decks.current.cards.filter { it.section == DeckSection.EXTRA }
@@ -201,6 +215,7 @@ class SynergyCompleteDeckTest {
             scripts = GetEffectScripts { emptyList() },
             legality = AlwaysLegal,
             resolve = ResolveCardById { catalog[it] },
+            flowCatalog = EmptyFlowCatalog,
         )
         useCase.invoke(1L, 6, 0, 0, GameFormat.TCG)
         val names = decks.current.cards.map { it.card.name.lowercase() }
@@ -267,6 +282,7 @@ class SynergyCompleteDeckTest {
             scripts = GetEffectScripts { emptyList() },
             legality = AlwaysLegal,
             resolve = ResolveCardById { all[it] },
+            flowCatalog = EmptyFlowCatalog,
         )
         useCase.invoke(1L, 8, 3, 0, GameFormat.TCG)
         val extraNames = decks.current.cards

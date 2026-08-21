@@ -34,6 +34,7 @@ class RoomOfflinePackRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dao: CardDao,
     private val api: YgoProDeckClient,
+    private val flowCatalog: AssetFlowCatalog,
 ) : OfflinePackRepository {
     private val progress = MutableStateFlow<CatalogSyncProgress?>(null)
     private val statusTick = MutableStateFlow(0)
@@ -110,7 +111,17 @@ class RoomOfflinePackRepository @Inject constructor(
                 android.util.Log.w("OfflinePack", "SynergyEnrichment failed for $cardId", it)
                 emptyList()
             }
-            (edges + enriched)
+            val hatRoles = runCatching {
+                val roles = flowCatalog.rolesFor(cardId, GameFormat.HAT)
+                val partnerIds = roles.flatMap { it.partnerIds }.distinct()
+                val names = if (partnerIds.isEmpty()) {
+                    emptyMap()
+                } else {
+                    dao.getByIds(partnerIds).associate { it.id to it.name }
+                }
+                flowCatalog.hatRoleRelated(cardId) { id -> names[id] }
+            }.getOrDefault(emptyList())
+            (edges + enriched + hatRoles)
                 .sortedByDescending { it.score }
                 .distinctBy { it.id }
                 .take(want.coerceAtLeast(36))

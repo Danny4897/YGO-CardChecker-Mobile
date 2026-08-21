@@ -1,0 +1,358 @@
+{
+  "version": 1,
+  "flows": [
+    {
+      "id": "hat-myrmeleo-opening",
+      "formatId": "hat",
+      "title": "Traptrix Myrmeleo — opening line",
+      "archetype": "Traptrix",
+      "kind": "OPENING",
+      "roleTags": ["Starter", "Control"],
+      "metrics": { "steps": 4, "handCost": 1, "fieldCost": 0, "risk": "LOW", "payoff": "CONTROL" },
+      "startNodeId": "m0",
+      "nodes": [
+        {
+          "id": "m0",
+          "sortIndex": 0,
+          "title": "Normal Summon Myrmeleo",
+          "body": "On NS: search a Hole normal trap. Keep Trap Hole / Traptrix Trap Hole Nightmare in mind vs SS.",
+          "cardIds": [91812389],
+          "zoneHint": "FIELD"
+        },
+        {
+          "id": "m1",
+          "sortIndex": 1,
+          "title": "Add Hole trap",
+          "body": "Prefer Traptrix Trap Hole Nightmare if you expect Synchro/Xyz; Bottomless vs big Normal.",
+          "cardIds": [29616900],
+          "zoneHint": "HAND"
+        },
+        {
+          "id": "m2",
+          "sortIndex": 2,
+          "title": "Set trap + pass",
+          "body": "Do not over-extend into MST. Rafflesia line is optional Extra pressure.",
+          "zoneHint": "SET"
+        },
+        {
+          "id": "m3",
+          "sortIndex": 3,
+          "title": "OP turn — resolve Hole",
+          "body": "Chain correctly: respond to the summon, not after they already resolved a search.",
+          "timingWindow": "response_to_ss",
+          "zoneHint": "FIELD"
+        }
+      ],
+      "edges": [
+        { "id": "me0", "from": "m0", "to": "m1", "label": "Search resolves", "condition": "ALWAYS", "isDefault": true },
+        { "id": "me1", "from": "m1", "to": "m2", "label": "Set and pass", "condition": "ALWAYS", "isDefault": true },
+        { "id": "me2", "from": "m2", "to": "m3", "label": "Opponent summons", "condition": "USER_CHOICE", "isDefault": true }
+      ],
+      "chokePoints": [
+        {
+          "nodeId": "m1",
+          "severity": "MED",
+          "reason": "If the Hole search is interrupted (Debunk / similar), the opening dies — keep a second Hole name and Myrmeleo at 3.",
+          "recoveryCardIds": [29401950, 29616900],
+          "suggestedCopies": 2
+        },
+        {
+          "nodeId": "m3",
+          "severity": "MED",
+          "reason": "Responding late after a search already resolved wastes the Hole — prefer Nightmare vs Extra summons.",
+          "recoveryCardIds": [29616900],
+          "suggestedCopies": 2
+        }
+      ]
+    },
+    {
+      "id": "hat-hand-bait",
+      "formatId": "hat",
+      "title": "Fire / Ice Hand — bait under backrow",
+      "archetype": "Hand",
+      "kind": "BAIT_REACTION",
+      "roleTags": ["BoardBreak", "Control"],
+      "metrics": { "steps": 4, "handCost": 1, "fieldCost": 0, "risk": "MED", "payoff": "BOARD" },
+      "startNodeId": "h0",
+      "nodes": [
+        {
+          "id": "h0",
+          "sortIndex": 0,
+          "title": "Read the backrow",
+          "body": "Hands only keep timing if destroyed as Chain Link 1. Do not put them under MST as CL2+.",
+          "cardIds": [68535320, 95929069]
+        },
+        {
+          "id": "h1",
+          "sortIndex": 1,
+          "title": "Commit Hand face-up",
+          "body": "Normal or SS into a zone they want to pop. Prefer forcing a single-target destroy.",
+          "zoneHint": "FIELD"
+        },
+        {
+          "id": "h2",
+          "sortIndex": 2,
+          "title": "Destruction must be CL1",
+          "body": "If their destroy is CL2 or later, Hand misses timing — no SS, no follow-up destroy.",
+          "timingWindow": "hand_destruction_cl1",
+          "cardIds": [68535320]
+        },
+        {
+          "id": "h3",
+          "sortIndex": 3,
+          "title": "Resolve SS + pop",
+          "body": "Fire Hand → destroy monster; Ice Hand → destroy Spell/Trap. Then reassess push.",
+          "zoneHint": "FIELD"
+        },
+        {
+          "id": "h_miss",
+          "sortIndex": 4,
+          "title": "Missed timing — stop",
+          "body": "You lost the Hand effect. Do not chain more blindly; rebuild resources."
+        }
+      ],
+      "edges": [
+        { "id": "he0", "from": "h0", "to": "h1", "label": "Backrow present — bait", "condition": "IF_BACKROW", "isDefault": true },
+        { "id": "he1", "from": "h1", "to": "h2", "label": "They destroy your Hand", "condition": "ALWAYS", "isDefault": true },
+        { "id": "he2", "from": "h2", "to": "h3", "label": "Destroyed as CL1", "condition": "ALWAYS", "isDefault": true },
+        { "id": "he3", "from": "h2", "to": "h_miss", "label": "Would be CL2+ (fail path)", "condition": "USER_CHOICE", "isDefault": false }
+      ],
+      "chokePoints": [
+        {
+          "nodeId": "h2",
+          "severity": "HIGH",
+          "reason": "Hand miss-timing if destruction is CL2+. Without a follow-up extender the board stalls — Soul Charge / second Hand name recovers.",
+          "recoveryCardIds": [54447022, 95929069, 68535320],
+          "suggestedCopies": 2
+        }
+      ]
+    },
+    {
+      "id": "hat-artifact-op-turn",
+      "formatId": "hat",
+      "title": "Artifact — Sanctum / Ignition in OP turn",
+      "archetype": "Artifact",
+      "kind": "ARTIFACT_ENGINE",
+      "roleTags": ["Control", "Interrupt"],
+      "metrics": { "steps": 5, "handCost": 0, "fieldCost": 1, "risk": "MED", "payoff": "INTERRUPT" },
+      "startNodeId": "a0",
+      "nodes": [
+        {
+          "id": "a0",
+          "sortIndex": 0,
+          "title": "Artifacts set as Spell/Trap",
+          "body": "Moralltach / Beagalltach face-down in S/T. Sanctum or Ignition ready.",
+          "cardIds": [20292186, 12444060, 21497230],
+          "zoneHint": "SET"
+        },
+        {
+          "id": "a1",
+          "sortIndex": 1,
+          "title": "Wait for a real push",
+          "body": "Ideal windows: opponent SS, search that wins the game, or battle push. Avoid empty Sanctum.",
+          "timingWindow": "op_main_or_battle"
+        },
+        {
+          "id": "a2",
+          "sortIndex": 2,
+          "title": "Activate Sanctum → SS Moralltach",
+          "body": "Sanctum SS an Artifact from deck. Moralltach is the default destroy answer.",
+          "cardIds": [12444060, 20292186],
+          "zoneHint": "FIELD"
+        },
+        {
+          "id": "a3",
+          "sortIndex": 3,
+          "title": "Moralltach destroy",
+          "body": "When SS'd during opponent's turn, destroy one face-up card they control.",
+          "cardIds": [20292186]
+        },
+        {
+          "id": "a_ignition",
+          "sortIndex": 4,
+          "title": "Alt — Ignition protect / recycle",
+          "body": "If they target your set Artifacts, Ignition can protect or set up GY plays.",
+          "cardIds": [21497230]
+        }
+      ],
+      "edges": [
+        { "id": "ae0", "from": "a0", "to": "a1", "label": "Pass to OP", "condition": "ALWAYS", "isDefault": true },
+        { "id": "ae1", "from": "a1", "to": "a2", "label": "Punish SS / search", "condition": "USER_CHOICE", "isDefault": true },
+        { "id": "ae2", "from": "a1", "to": "a_ignition", "label": "They target your set", "condition": "IF_ARTIFACT_SET", "isDefault": false },
+        { "id": "ae3", "from": "a2", "to": "a3", "label": "Moralltach resolves", "condition": "ALWAYS", "isDefault": true }
+      ],
+      "chokePoints": [
+        {
+          "nodeId": "a2",
+          "severity": "HIGH",
+          "reason": "Sanctum is a Counter Trap — Wiretap / similar stops the SS. Keep Ignition and Moralltach density so the engine is not one-card.",
+          "recoveryCardIds": [21497230, 20292186, 34507039],
+          "suggestedCopies": 2
+        }
+      ]
+    },
+    {
+      "id": "hat-trap-priority",
+      "formatId": "hat",
+      "title": "Trap line — activation priority",
+      "archetype": "HAT",
+      "kind": "TRAP_LINE",
+      "roleTags": ["Control", "Interrupt"],
+      "metrics": { "steps": 4, "handCost": 0, "fieldCost": 0, "risk": "LOW", "payoff": "INTERRUPT" },
+      "startNodeId": "t0",
+      "nodes": [
+        {
+          "id": "t0",
+          "sortIndex": 0,
+          "title": "Identify the threat",
+          "body": "Is it a summon, an effect activation, or a search? Priority changes."
+        },
+        {
+          "id": "t1",
+          "sortIndex": 1,
+          "title": "Summon → Hole / Black Horn",
+          "body": "Trap Hole / Traptrix Trap Hole / Black Horn of Heaven vs the right summon type.",
+          "cardIds": [29616900, 50323155]
+        },
+        {
+          "id": "t2",
+          "sortIndex": 2,
+          "title": "Effect → Fiendish / BTS",
+          "body": "Fiendish Chain for continuous lockdown; Breakthrough Skill for GY follow-up later.",
+          "cardIds": [50078509, 78474168]
+        },
+        {
+          "id": "t3",
+          "sortIndex": 3,
+          "title": "Sanctum vs Wiretap knowledge",
+          "body": "Sanctum is a Counter Trap — Wiretap can negate it. Count their counters before committing.",
+          "cardIds": [12444060, 34507039]
+        }
+      ],
+      "edges": [
+        { "id": "te0", "from": "t0", "to": "t1", "label": "Threat is a summon", "condition": "USER_CHOICE", "isDefault": true },
+        { "id": "te1", "from": "t0", "to": "t2", "label": "Threat is a monster effect", "condition": "USER_CHOICE", "isDefault": false },
+        { "id": "te2", "from": "t1", "to": "t3", "label": "Also holding Sanctum", "condition": "IF_ARTIFACT_SET", "isDefault": true },
+        { "id": "te3", "from": "t2", "to": "t3", "label": "Also holding Sanctum", "condition": "IF_ARTIFACT_SET", "isDefault": true }
+      ],
+      "chokePoints": [
+        {
+          "nodeId": "t3",
+          "severity": "MED",
+          "reason": "Wrong trap priority empties your backrow into bait. Diversify Hole / Fiendish / BTS so one MST does not end the game.",
+          "recoveryCardIds": [50078509, 78474168, 29616900],
+          "suggestedCopies": 2
+        }
+      ]
+    },
+    {
+      "id": "hat-geargiarmor-loop",
+      "formatId": "hat",
+      "title": "Geargia — Armor search loop",
+      "archetype": "Geargia",
+      "kind": "OPENING",
+      "roleTags": ["Starter", "Extender"],
+      "metrics": { "steps": 4, "handCost": 1, "fieldCost": 1, "risk": "MED", "payoff": "BOARD" },
+      "startNodeId": "g0",
+      "nodes": [
+        {
+          "id": "g0",
+          "sortIndex": 0,
+          "title": "Set Geargiarmor",
+          "body": "Armor is your engine. Protect it from easy pops when possible.",
+          "cardIds": [9634146],
+          "zoneHint": "SET"
+        },
+        {
+          "id": "g1",
+          "sortIndex": 1,
+          "title": "Flip Armor — search Geargia",
+          "body": "Add Geargiaccelerator or the piece you need for Xyz.",
+          "cardIds": [9239806]
+        },
+        {
+          "id": "g2",
+          "sortIndex": 2,
+          "title": "SS Accelerator from hand",
+          "body": "While you control a Geargia, Accelerator SS itself — extend into Rank 4 / 3 lines.",
+          "cardIds": [9239806],
+          "zoneHint": "FIELD"
+        },
+        {
+          "id": "g3",
+          "sortIndex": 3,
+          "title": "Make Rank play / pass with traps",
+          "body": "HAT Geargia wins on resource loops + traps, not empty boards."
+        }
+      ],
+      "edges": [
+        { "id": "ge0", "from": "g0", "to": "g1", "label": "Flip resolves", "condition": "ALWAYS", "isDefault": true },
+        { "id": "ge1", "from": "g1", "to": "g2", "label": "Have Accelerator", "condition": "ALWAYS", "isDefault": true },
+        { "id": "ge2", "from": "g2", "to": "g3", "label": "Xyz or set traps", "condition": "USER_CHOICE", "isDefault": true }
+      ],
+      "chokePoints": [
+        {
+          "nodeId": "g0",
+          "severity": "HIGH",
+          "reason": "Armor is the engine — if it dies before flip, the loop stops. Play 3 Armor and protect with traps / System Down awareness.",
+          "recoveryCardIds": [9634146, 9239806],
+          "suggestedCopies": 3
+        }
+      ]
+    },
+    {
+      "id": "hat-abyssteus-mermail",
+      "formatId": "hat",
+      "title": "Mermail — Abyssteus opening",
+      "archetype": "Mermail",
+      "kind": "OPENING",
+      "roleTags": ["Starter", "Extender"],
+      "metrics": { "steps": 4, "handCost": 2, "fieldCost": 0, "risk": "MED", "payoff": "BOARD" },
+      "startNodeId": "s0",
+      "nodes": [
+        {
+          "id": "s0",
+          "sortIndex": 0,
+          "title": "Discard water — SS Abyssteus",
+          "body": "Teus searches a Level 4 Mermail. Track GY for later Megalo / Marksman.",
+          "cardIds": [69207766],
+          "zoneHint": "FIELD"
+        },
+        {
+          "id": "s1",
+          "sortIndex": 1,
+          "title": "Add Level 4 Mermail",
+          "body": "Pike / Marksman / Undine lines depending on hand.",
+          "zoneHint": "HAND"
+        },
+        {
+          "id": "s2",
+          "sortIndex": 2,
+          "title": "Respect Debunk / Soul Release",
+          "body": "Choke points: Debunk on search; Soul Release / System Down from Side. Play around known counters.",
+          "cardIds": [6579928, 93332803]
+        },
+        {
+          "id": "s3",
+          "sortIndex": 3,
+          "title": "Extend or set traps",
+          "body": "HAT Mermail is resource-heavy — do not empty hand into unknown backrow without bait."
+        }
+      ],
+      "edges": [
+        { "id": "se0", "from": "s0", "to": "s1", "label": "Search resolves", "condition": "ALWAYS", "isDefault": true },
+        { "id": "se1", "from": "s1", "to": "s2", "label": "Check Side threats", "condition": "ALWAYS", "isDefault": true },
+        { "id": "se2", "from": "s2", "to": "s3", "label": "Continue line", "condition": "USER_CHOICE", "isDefault": true }
+      ],
+      "chokePoints": [
+        {
+          "nodeId": "s2",
+          "severity": "HIGH",
+          "reason": "Debunk on the Teus search bricks the open. Side Debunk awareness + enough L4 names keeps the line consistent.",
+          "recoveryCardIds": [6579928, 69207766],
+          "suggestedCopies": 2
+        }
+      ]
+    }
+  ]
+}
