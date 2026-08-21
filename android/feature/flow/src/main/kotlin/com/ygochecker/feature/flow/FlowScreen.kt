@@ -225,16 +225,6 @@ class FlowViewModel @Inject constructor(
 
 @Composable
 fun FlowRoute(vm: FlowViewModel = hiltViewModel()) {
-    // Engine UI parked — Coming Soon until we redesign Flow.
-    com.ygochecker.core.designsystem.ComingSoonScreen(
-        title = stringResource(DesignR.string.flow_title),
-        body = stringResource(DesignR.string.flow_coming_soon_body),
-    )
-}
-
-@Composable
-@Suppress("unused")
-private fun FlowRouteLegacy(vm: FlowViewModel = hiltViewModel()) {
     val decks by vm.decks.collectAsStateWithLifecycle()
     val format by vm.format.collectAsStateWithLifecycle()
     val pack by vm.pack.collectAsStateWithLifecycle()

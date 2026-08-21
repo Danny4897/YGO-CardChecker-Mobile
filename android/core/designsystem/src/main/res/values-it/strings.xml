@@ -436,7 +436,6 @@
     <string name="error_profile_link_oauth_not_configured">OAuth Discord/Google non configurato in questa build. Aggiungi DISCORD_CLIENT_ID + DISCORD_CLIENT_SECRET (e GOOGLE_CLIENT_ID) in android/local.properties, poi ricostruisci.</string>
     <string name="coming_soon_badge">Coming soon</string>
     <string name="coming_soon_title">In costruzione</string>
-    <string name="flow_coming_soon_body">Flow viene ridisegnato come lab stile MDPRO più chiaro. Il motore attuale è nascosto finché la nuova UX non è pronta.</string>
     <string name="editor_complete_deck">Completa mazzo</string>
     <string name="editor_complete_title">Auto-completa mazzo</string>
     <string name="editor_complete_body">Imposta Main / Extra / Side. Sinergie in cascata da script + testo (Tuner↔Synchro, Rank Xyz, package, archetipi). L’Extra preferisce tanti 1-of diversi (Synchro + Xyz + Fusion), non 3× lo stesso boss. Prima Scarica tutto in Impostazioni.</string>

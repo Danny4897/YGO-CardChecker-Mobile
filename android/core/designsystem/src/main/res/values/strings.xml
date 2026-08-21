@@ -433,7 +433,6 @@
     <string name="error_profile_friend_invalid">Friend name must be at least 2 characters.</string>
     <string name="coming_soon_badge">Coming soon</string>
     <string name="coming_soon_title">Under construction</string>
-    <string name="flow_coming_soon_body">Flow is being redesigned as a clearer MDPRO-style lab. The current engine is hidden until the new UX is ready.</string>
     <string name="editor_complete_deck">Complete deck</string>
     <string name="editor_complete_title">Auto-complete deck</string>
     <string name="editor_complete_body">Set Main / Extra / Side targets. Cascading synergies use effect scripts + printed text (Tuner↔Synchro, Xyz ranks, packages, archetypes). Extra prefers many different 1-ofs (Synchro + Xyz + Fusion), not 3× the same boss. Run Download everything in Settings first.</string>
