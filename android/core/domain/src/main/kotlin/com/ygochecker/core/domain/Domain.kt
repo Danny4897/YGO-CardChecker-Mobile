@@ -343,6 +343,20 @@ class DefaultGetEffectScripts @Inject constructor(private val pack: OfflinePackR
     override suspend fun invoke(ids: Collection<Int>) = pack.effectScripts(ids)
 }
 
+fun interface GetSegocProfile {
+    suspend fun invoke(cardId: Int): SegocProfileSummary?
+}
+class DefaultGetSegocProfile @Inject constructor(private val pack: OfflinePackRepository) : GetSegocProfile {
+    override suspend fun invoke(cardId: Int) = pack.segocProfile(cardId)
+}
+
+fun interface GetSegocProfiles {
+    suspend fun invoke(ids: Collection<Int>): List<SegocProfileSummary>
+}
+class DefaultGetSegocProfiles @Inject constructor(private val pack: OfflinePackRepository) : GetSegocProfiles {
+    override suspend fun invoke(ids: Collection<Int>) = pack.segocProfiles(ids)
+}
+
 fun interface GetRelatedCards {
     /** Synergy-related cards that are playable in [format] (maxCopies > 0). */
     suspend fun invoke(cardId: Int, format: GameFormat, limit: Int): List<RelatedCardRef>
