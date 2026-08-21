@@ -16,6 +16,7 @@ import com.ygochecker.core.model.SocialPublicDeck
 import com.ygochecker.core.model.SocialPublicDeckSummary
 import com.ygochecker.core.model.SocialUser
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.annotations.SupabaseExperimental
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.OTP
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -312,6 +313,7 @@ class SupabaseSocialRepository @Inject constructor(
         Unit
     }
 
+    @OptIn(SupabaseExperimental::class)
     override fun observeAlerts(): Flow<List<SocialAlert>> {
         val uid = currentUid() ?: return flowOf(emptyList())
         return client.postgrest.from("user_alerts").selectAsFlow(

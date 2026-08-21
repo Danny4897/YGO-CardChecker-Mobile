@@ -56,7 +56,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true; buildConfig = true }
-    packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    packaging {
+        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        // Legacy JNI packaging → extractNativeLibs=true. Some OEM PackageInstallers
+        // reject ML Kit APKs that ship uncompressed .so with extractNativeLibs=false.
+        jniLibs.useLegacyPackaging = true
+    }
     // FOSS distribution: release APK is NOT debuggable (Play Protect flags debug builds).
     // Same debug keystore keeps in-place upgrades from earlier GitHub debug APKs.
     buildTypes {
