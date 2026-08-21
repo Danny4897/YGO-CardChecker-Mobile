@@ -76,6 +76,7 @@ dependencies {
     implementation(project(":data:cards"))
     implementation(project(":data:deck"))
     implementation(project(":data:social"))
+    implementation(project(":feature:home"))
     implementation(project(":feature:search"))
     implementation(project(":feature:decklist"))
     implementation(project(":feature:settings"))

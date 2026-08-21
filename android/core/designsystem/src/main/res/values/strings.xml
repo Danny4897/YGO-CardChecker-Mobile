@@ -1,9 +1,23 @@
 <resources>
+    <string name="nav_home">Home</string>
     <string name="nav_search">Search</string>
     <string name="nav_decks">Decks</string>
     <string name="nav_settings">Settings</string>
     <string name="nav_menu">Menu</string>
     <string name="nav_drawer_account">Account</string>
+    <string name="home_alerts">Notifications</string>
+    <string name="home_title">Home</string>
+    <string name="home_subtitle">Your duelist dashboard</string>
+    <string name="home_last_deck">Last edited deck</string>
+    <string name="home_deck_legal">Legal</string>
+    <string name="home_deck_illegal">Over the limit</string>
+    <string name="home_no_decks_title">No decks yet</string>
+    <string name="home_no_decks_body">Build your first deck to see its legality here.</string>
+    <string name="home_open_decks">Open decks</string>
+    <string name="home_flow_title">Test an opening hand</string>
+    <string name="home_flow_subtitle">Draw, mulligan, check your consistency</string>
+    <string name="home_search_title">Search cards</string>
+    <string name="home_search_subtitle">Find and add cards to a deck</string>
     <string name="splash_brand">YGOChecker</string>
     <string name="splash_tagline">Build. Check. Duel.</string>
     <string name="import_forge_title">Deck forged</string>

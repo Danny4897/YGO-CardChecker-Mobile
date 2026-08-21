@@ -1,9 +1,23 @@
 <resources>
+    <string name="nav_home">Home</string>
     <string name="nav_search">Cerca</string>
     <string name="nav_decks">Mazzi</string>
     <string name="nav_settings">Impostazioni</string>
     <string name="nav_menu">Menu</string>
     <string name="nav_drawer_account">Account</string>
+    <string name="home_alerts">Notifiche</string>
+    <string name="home_title">Home</string>
+    <string name="home_subtitle">La tua plancia da duellante</string>
+    <string name="home_last_deck">Ultimo mazzo modificato</string>
+    <string name="home_deck_legal">Legale</string>
+    <string name="home_deck_illegal">Fuori limite</string>
+    <string name="home_no_decks_title">Nessun mazzo ancora</string>
+    <string name="home_no_decks_body">Costruisci il tuo primo mazzo per vederne qui la legalità.</string>
+    <string name="home_open_decks">Apri mazzi</string>
+    <string name="home_flow_title">Testa una mano di apertura</string>
+    <string name="home_flow_subtitle">Pesca, mulligan, controlla la consistenza</string>
+    <string name="home_search_title">Cerca carte</string>
+    <string name="home_search_subtitle">Trova e aggiungi carte a un mazzo</string>
     <string name="splash_brand">YGOChecker</string>
     <string name="splash_tagline">Costruisci. Controlla. Duella.</string>
     <string name="import_forge_title">Mazzo forgiato</string>

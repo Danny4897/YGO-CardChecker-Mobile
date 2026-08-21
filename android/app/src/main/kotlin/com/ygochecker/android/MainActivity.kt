@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
@@ -20,6 +21,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -74,6 +76,7 @@ import com.ygochecker.core.domain.LanguagePreference
 import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.feature.decklist.DecksRoute
 import com.ygochecker.feature.flow.FlowRoute
+import com.ygochecker.feature.home.HomeRoute
 import com.ygochecker.feature.overlay.OverlayRoute
 import com.ygochecker.feature.profile.ProfileRoute
 import com.ygochecker.feature.search.SearchRoute
@@ -197,24 +200,29 @@ private fun LocalizedResources(language: AppLanguage, content: @Composable () ->
 
 private data class Destination(val route: String, val label: Int, val icon: ImageVector)
 
-/** Primary tabs — swipeable pager. Profile/Settings live in the drawer. */
+/** Primary tabs — swipeable pager. Profile/Settings/Overlay live in the drawer. */
 private val primaryTabs = listOf(
     Destination("search", DesignR.string.nav_search, Icons.Default.Search),
     Destination("decks", DesignR.string.nav_decks, Icons.Default.Style),
     Destination("flow", DesignR.string.nav_flow, Icons.Default.AccountTree),
-    Destination("overlay", DesignR.string.nav_overlay, Icons.Default.Visibility),
+    Destination("home", DesignR.string.nav_home, Icons.Default.Home),
 )
 
+/**
+ * Overlay is a power-user MDPRO3 companion (screen capture + OCR) — it doesn't need
+ * equal billing with Search/Decks/Flow/Home, so it lives here instead of the bottom bar.
+ */
 private val drawerDestinations = listOf(
     Destination("profile", DesignR.string.nav_profile, Icons.Default.Person),
     Destination("settings", DesignR.string.nav_settings, Icons.Default.Settings),
+    Destination("overlay", DesignR.string.nav_overlay, Icons.Default.Visibility),
 )
 
 /**
  * Modern shell:
  * - Bottom bar stays fixed; drawer opens **above** it (does not cover the nav).
  * - Primary destinations use a horizontal pager (swipe between tabs).
- * - Profile / Settings stay in the account drawer.
+ * - Profile / Settings / Overlay stay in the account drawer.
  */
 @Composable
 private fun AppShell(onCheckUpdates: () -> Unit = {}) {
@@ -239,17 +247,19 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
         }
     }
 
-    val showBottomBar = section != "settings"
-    val selectedTab = when (section) {
-        "profile" -> -1
-        "settings" -> -1
-        else -> tabIndex
-    }
+    val showBottomBar = section == "tabs"
+    val selectedTab = if (section == "tabs") tabIndex else -1
 
     fun goTabs(index: Int) {
         section = "tabs"
         tabIndex = index.coerceIn(0, primaryTabs.lastIndex)
         scope.launch { drawerState.close() }
+    }
+
+    // Drawer destinations (Profile/Settings/Overlay) have no back-stack entry of their own —
+    // without this, the system back button exits the app instead of returning to the tabs.
+    BackHandler(enabled = section != "tabs") {
+        section = "tabs"
     }
 
     CompositionLocalProvider(LocalOpenDrawer provides openDrawer) {
@@ -360,6 +370,7 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
                         installedVersionName = BuildConfig.VERSION_NAME,
                         installedVersionCode = BuildConfig.VERSION_CODE,
                     )
+                    "overlay" -> OverlayRoute()
                     else -> HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
@@ -370,7 +381,11 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
                             "search" -> SearchRoute()
                             "decks" -> DecksRoute()
                             "flow" -> FlowRoute()
-                            "overlay" -> OverlayRoute()
+                            "home" -> HomeRoute(
+                                onOpenSearch = { goTabs(0) },
+                                onOpenDecks = { goTabs(1) },
+                                onOpenFlow = { goTabs(2) },
+                            )
                         }
                     }
                 }

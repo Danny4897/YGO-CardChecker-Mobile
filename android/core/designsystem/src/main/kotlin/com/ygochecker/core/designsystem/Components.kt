@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -243,6 +246,22 @@ fun StatusChip(label: String, tone: StatusTone, modifier: Modifier = Modifier) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/** Notification bell for realtime alerts (friend requests, DMs, banlist changes). */
+@Composable
+fun AlertBell(unreadCount: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(onClick = onClick, modifier = modifier) {
+        BadgedBox(
+            badge = {
+                if (unreadCount > 0) {
+                    Badge { Text(if (unreadCount > 9) "9+" else unreadCount.toString()) }
+                }
+            },
+        ) {
+            Icon(Icons.Default.Notifications, contentDescription = stringResource(R.string.home_alerts))
+        }
     }
 }
 

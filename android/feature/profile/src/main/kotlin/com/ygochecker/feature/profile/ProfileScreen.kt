@@ -3,6 +3,7 @@ package com.ygochecker.feature.profile
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -429,6 +430,12 @@ class ProfileViewModel @Inject constructor(
 fun ProfileRoute(vm: ProfileViewModel = hiltViewModel()) {
     var nav by remember { mutableStateOf<ProfileNav>(ProfileNav.Home) }
     val notice = vm.notice
+
+    // A friend's profile, a public deck or a DM thread has no back-stack entry of its
+    // own here — without this, system back skips straight past Profile to the app shell.
+    BackHandler(enabled = nav != ProfileNav.Home) {
+        nav = ProfileNav.Home
+    }
 
     Column(Modifier.fillMaxSize()) {
         when (val dest = nav) {
