@@ -12,8 +12,8 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 20
-        versionName = "0.4.0"
+        versionCode = 21
+        versionName = "0.5.0"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",

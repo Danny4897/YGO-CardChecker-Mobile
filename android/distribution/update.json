@@ -1,6 +1,6 @@
 {
-  "versionCode": 20,
-  "versionName": "0.4.0",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.4.0/app-release.apk",
-  "changelog": "Redesign Cyber Duel HUD: nuova palette, badge tipo/attributo carta, 5 tab di navigazione. Rimossa la drawer, Settings/Overlay ora raggiungibili dall'ingranaggio in alto."
+  "versionCode": 21,
+  "versionName": "0.5.0",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.5.0/app-release.apk",
+  "changelog": "SEGOC Flow Coach: la tab Flow ora suggerisce le combo del tuo mazzo attivo seguendo le regole reali SEGOC (trigger simultanei, missed timing, spell speed). Il catalogo HAT resta disponibile come sezione secondaria."
 }
