@@ -411,7 +411,7 @@ class DefaultSuggestBudgetSwaps @Inject constructor(
             val best = related.invoke(dc.card.id, format, RELATED_POOL)
                 .filterNot { it.id in inDeckIds }
                 .mapNotNull { ref -> cardRepo.get(ref.id) }
-                .filter { it.priceEur != null && it.priceEur < price }
+                .filter { (it.priceEur ?: Double.MAX_VALUE) < price }
                 .minByOrNull { it.priceEur!! }
             if (best != null) results += BudgetSwapSuggestion(dc, best, price - best.priceEur!!)
         }
