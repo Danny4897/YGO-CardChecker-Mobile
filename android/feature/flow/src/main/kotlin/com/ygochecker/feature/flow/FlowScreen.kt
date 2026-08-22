@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,15 +51,23 @@ import com.ygochecker.core.domain.GetFlow
 import com.ygochecker.core.domain.GetSegocProfiles
 import com.ygochecker.core.domain.ListDecklists
 import com.ygochecker.core.domain.ListFlows
+import com.ygochecker.core.domain.MdproAssetSettings
+import com.ygochecker.core.domain.SetDeckPuzzleOpponent
 import com.ygochecker.core.model.FlowEdge
 import com.ygochecker.core.model.FlowGraph
 import com.ygochecker.core.model.FlowKind
 import com.ygochecker.core.model.FlowRehearsalEngine
 import com.ygochecker.core.model.FlowSummary
 import com.ygochecker.core.model.GameFormat
+import com.ygochecker.core.model.SegocLesson
 import com.ygochecker.core.model.SegocProfileSummary
+import com.ygochecker.core.model.SegocStepKind
+import com.ygochecker.core.model.PuzzleInstance
 import com.ygochecker.core.model.SimultaneousTriggerPair
 import com.ygochecker.core.model.TimingAnswer
+import com.ygochecker.core.model.buildSegocLessons
+import com.ygochecker.core.model.evaluatePuzzle
+import com.ygochecker.core.model.instantiatePuzzles
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -72,6 +83,8 @@ class FlowViewModel @Inject constructor(
     private val flowLinks: DeckFlowLinkRepository,
     private val getSegocProfiles: GetSegocProfiles,
     private val findSimultaneousTriggers: FindSimultaneousTriggers,
+    private val mdproAssets: MdproAssetSettings,
+    private val setPuzzleOpponent: SetDeckPuzzleOpponent,
 ) : ViewModel() {
     val format = formatPreference.values.stateIn(
         viewModelScope,
@@ -106,10 +119,32 @@ class FlowViewModel @Inject constructor(
         private set
     var simultaneousPairs by mutableStateOf<List<SimultaneousTriggerPair>>(emptyList())
         private set
+    var lessons by mutableStateOf<List<SegocLesson>>(emptyList())
+        private set
+    var puzzles by mutableStateOf<List<PuzzleInstance>>(emptyList())
+        private set
+    var opponentDeckId by mutableStateOf<Long?>(null)
+        private set
+    var mdproRoot by mutableStateOf<String?>(null)
+        private set
     var showCatalog by mutableStateOf(false)
         private set
     var coachLoading by mutableStateOf(false)
         private set
+    var fieldLesson by mutableStateOf<SegocLesson?>(null)
+        private set
+    var activePuzzle by mutableStateOf<PuzzleInstance?>(null)
+        private set
+    var placedChain by mutableStateOf<List<Int>>(emptyList())
+        private set
+    var puzzleWrong by mutableStateOf(false)
+        private set
+
+    init {
+        viewModelScope.launch {
+            mdproAssets.rootPath().collect { mdproRoot = it }
+        }
+    }
 
     fun toggleCatalog() {
         showCatalog = !showCatalog
@@ -121,6 +156,8 @@ class FlowViewModel @Inject constructor(
         if (deckId == null) {
             segocByCardId = emptyMap()
             simultaneousPairs = emptyList()
+            lessons = emptyList()
+            puzzles = emptyList()
             return
         }
         viewModelScope.launch {
@@ -129,7 +166,67 @@ class FlowViewModel @Inject constructor(
             val cardIds = deck.cards.map { it.card.id }.distinct()
             segocByCardId = getSegocProfiles.invoke(cardIds).associateBy { it.cardId }
             simultaneousPairs = findSimultaneousTriggers.invoke(deckId)
+            val opp = decks.value.firstOrNull { it.id == opponentDeckId && it.isPuzzleOpponent }
+            val oppIds = opp?.cards?.map { it.card.id }.orEmpty()
+            val oppProfiles = if (oppIds.isEmpty()) emptyMap()
+            else getSegocProfiles.invoke(oppIds).associateBy { it.cardId }
+            val merged = segocByCardId + oppProfiles
+            lessons = buildSegocLessons(cardIds, oppIds, merged)
+            puzzles = instantiatePuzzles(cardIds, oppIds, merged)
             coachLoading = false
+        }
+    }
+
+    fun selectOpponent(id: Long?) {
+        opponentDeckId = id
+        loadCoachForActiveDeck()
+    }
+
+    fun markOpponent(deckId: Long, flag: Boolean) {
+        viewModelScope.launch {
+            setPuzzleOpponent.invoke(deckId, flag)
+            if (flag) opponentDeckId = deckId
+            loadCoachForActiveDeck()
+        }
+    }
+
+    fun openLessonField(lesson: SegocLesson) {
+        fieldLesson = lesson
+        activePuzzle = null
+    }
+
+    fun startPuzzle(puzzle: PuzzleInstance) {
+        activePuzzle = puzzle
+        fieldLesson = puzzle.lesson
+        placedChain = emptyList()
+        puzzleWrong = false
+    }
+
+    fun closeField() {
+        fieldLesson = null
+        activePuzzle = null
+        placedChain = emptyList()
+        puzzleWrong = false
+    }
+
+    fun tapPending(cardId: Int) {
+        if (activePuzzle == null) return
+        if (cardId in placedChain) return
+        placedChain = placedChain + cardId
+        puzzleWrong = false
+    }
+
+    fun confirmPuzzle() {
+        val puzzle = activePuzzle ?: return
+        val ok = evaluatePuzzle(puzzle, placedChain)
+        if (ok) {
+            val rest = puzzles.filterNot { it.id == puzzle.id }
+            puzzles = rest
+            val next = rest.firstOrNull()
+            if (next != null) startPuzzle(next) else closeField()
+        } else {
+            puzzleWrong = true
+            placedChain = emptyList()
         }
     }
 
@@ -248,11 +345,85 @@ fun FlowRoute(vm: FlowViewModel = hiltViewModel()) {
             val activeDeck = decks.firstOrNull { it.id == vm.activeDeckId }
             FlowCoachScreen(
                 deck = activeDeck,
+                decks = decks,
                 loading = vm.coachLoading,
                 segocByCardId = vm.segocByCardId,
-                simultaneousPairs = vm.simultaneousPairs,
+                lessons = vm.lessons,
+                puzzles = vm.puzzles,
+                opponentDeckId = vm.opponentDeckId,
+                onSelectOpponent = vm::selectOpponent,
+                onMarkOpponent = vm::markOpponent,
+                onOpenLesson = vm::openLessonField,
+                onStartPuzzle = vm::startPuzzle,
                 onOpenCatalog = vm::toggleCatalog,
             )
+        }
+    }
+    val fieldLesson = vm.fieldLesson
+    if (fieldLesson != null) {
+        val cardsById = decks.flatMap { it.cards }.associate { it.card.id to it.card }
+        val puzzle = vm.activePuzzle
+        Dialog(
+            onDismissRequest = vm::closeField,
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Column(Modifier.fillMaxSize()) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(DuelSpacing.space3),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = if (puzzle != null) {
+                                stringResource(DesignR.string.puzzle_title)
+                            } else {
+                                stringResource(DesignR.string.flow_lesson_field)
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        TextButton(onClick = vm::closeField) {
+                            Text(stringResource(DesignR.string.flow_back_to_coach))
+                        }
+                    }
+                    if (puzzle != null) {
+                        val pending = (puzzle.lesson.yourCardIds + puzzle.lesson.oppCardIds)
+                            .filterNot { it in vm.placedChain }
+                        FieldView(
+                            board = puzzle.board,
+                            cardsById = cardsById,
+                            mdproRoot = vm.mdproRoot,
+                            chain = vm.placedChain,
+                            pending = pending,
+                            onTapPending = vm::tapPending,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (vm.puzzleWrong) {
+                            Text(
+                                stringResource(DesignR.string.puzzle_wrong_chain),
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(DuelSpacing.space3),
+                            )
+                        }
+                        Button(
+                            onClick = vm::confirmPuzzle,
+                            modifier = Modifier.fillMaxWidth().padding(DuelSpacing.space3),
+                        ) {
+                            Text(stringResource(DesignR.string.puzzle_confirm))
+                        }
+                    } else {
+                        val board = emptyList<com.ygochecker.core.model.PuzzleBoardSlot>()
+                        FieldView(
+                            board = board,
+                            cardsById = cardsById,
+                            mdproRoot = vm.mdproRoot,
+                            chain = emptyList(),
+                            pending = fieldLesson.yourCardIds + fieldLesson.oppCardIds,
+                            onTapPending = {},
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -260,9 +431,16 @@ fun FlowRoute(vm: FlowViewModel = hiltViewModel()) {
 @Composable
 private fun FlowCoachScreen(
     deck: com.ygochecker.core.model.Decklist?,
+    decks: List<com.ygochecker.core.model.Decklist>,
     loading: Boolean,
     segocByCardId: Map<Int, SegocProfileSummary>,
-    simultaneousPairs: List<SimultaneousTriggerPair>,
+    lessons: List<SegocLesson>,
+    puzzles: List<PuzzleInstance>,
+    opponentDeckId: Long?,
+    onSelectOpponent: (Long?) -> Unit,
+    onMarkOpponent: (Long, Boolean) -> Unit,
+    onOpenLesson: (SegocLesson) -> Unit,
+    onStartPuzzle: (PuzzleInstance) -> Unit,
     onOpenCatalog: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -286,16 +464,67 @@ private fun FlowCoachScreen(
                 verticalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
                 modifier = Modifier.weight(1f),
             ) {
-                if (simultaneousPairs.isNotEmpty()) {
-                    item(key = "segoc-header") {
+                item(key = "opp-header") {
+                    Text(
+                        text = stringResource(DesignR.string.puzzle_opponent_section),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                item(key = "opp-chips") {
+                    val opponents = decks.filter { it.isPuzzleOpponent }
+                    Row(horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space2)) {
+                        FilterChip(
+                            selected = opponentDeckId == null,
+                            onClick = { onSelectOpponent(null) },
+                            label = { Text(stringResource(DesignR.string.puzzle_no_opponent)) },
+                        )
+                        opponents.forEach { opp ->
+                            FilterChip(
+                                selected = opponentDeckId == opp.id,
+                                onClick = { onSelectOpponent(opp.id) },
+                                label = { Text(opp.name) },
+                            )
+                        }
+                    }
+                }
+                if (!deck.isPuzzleOpponent) {
+                    item(key = "mark-opp") {
+                        OutlinedButton(onClick = { onMarkOpponent(deck.id, true) }) {
+                            Text(stringResource(DesignR.string.puzzle_mark_opponent))
+                        }
+                    }
+                }
+                if (lessons.isEmpty()) {
+                    item(key = "lesson-empty") {
                         Text(
-                            text = stringResource(DesignR.string.flow_segoc_section_title),
+                            stringResource(DesignR.string.flow_lesson_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    item(key = "lesson-header") {
+                        Text(
+                            text = stringResource(DesignR.string.flow_lesson_section),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
-                    items(simultaneousPairs, key = { "${it.cardAId}-${it.cardBId}-${it.sharedEvent}" }) { pair ->
-                        SegocWarningCard(pair, deck)
+                    items(lessons, key = { it.id }) { lesson ->
+                        LessonCard(lesson, deck, onOpenLesson)
+                    }
+                }
+                if (puzzles.isNotEmpty()) {
+                    item(key = "puzzle-header") {
+                        Text(
+                            text = stringResource(DesignR.string.puzzle_section),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    items(puzzles, key = { it.id }) { puzzle ->
+                        PuzzleRow(puzzle, onStartPuzzle)
                     }
                 }
                 item(key = "cards-header") {
@@ -314,6 +543,59 @@ private fun FlowCoachScreen(
             OutlinedButton(onClick = onOpenCatalog, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(DesignR.string.flow_open_catalog))
             }
+        }
+    }
+}
+
+@Composable
+private fun LessonCard(
+    lesson: SegocLesson,
+    deck: com.ygochecker.core.model.Decklist,
+    onOpen: (SegocLesson) -> Unit,
+) {
+    val names = lesson.yourCardIds.map { id ->
+        deck.cards.firstOrNull { it.card.id == id }?.card?.name ?: id.toString()
+    }
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onOpen(lesson) },
+    ) {
+        Column(Modifier.padding(DuelSpacing.space4), verticalArrangement = Arrangement.spacedBy(DuelSpacing.space2)) {
+            Text(names.joinToString(" → "), style = MaterialTheme.typography.titleSmall)
+            lesson.steps.forEach { step ->
+                val key = when (step.kind) {
+                    SegocStepKind.EVENT -> DesignR.string.flow_lesson_event
+                    SegocStepKind.YOUR_TRIGGERS -> DesignR.string.flow_lesson_your_triggers
+                    SegocStepKind.YOU_ORDER -> DesignR.string.flow_lesson_you_order
+                    SegocStepKind.OPP_ORDER -> DesignR.string.flow_lesson_opp_order
+                    SegocStepKind.RESOLVE_LIFO -> DesignR.string.flow_lesson_resolve_lifo
+                }
+                Text(
+                    text = "${step.kind.ordinal + 1}. ${stringResource(key)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PuzzleRow(puzzle: PuzzleInstance, onStart: (PuzzleInstance) -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onStart(puzzle) },
+    ) {
+        Row(
+            Modifier.padding(DuelSpacing.space4),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(puzzle.templateId, style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(DesignR.string.puzzle_play), color = MaterialTheme.colorScheme.primary)
         }
     }
 }

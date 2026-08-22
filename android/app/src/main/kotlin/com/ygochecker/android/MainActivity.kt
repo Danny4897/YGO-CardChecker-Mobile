@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Style
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -79,7 +78,6 @@ import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.feature.decklist.DecksRoute
 import com.ygochecker.feature.flow.FlowRoute
 import com.ygochecker.feature.home.HomeRoute
-import com.ygochecker.feature.overlay.OverlayRoute
 import com.ygochecker.feature.profile.ProfileRoute
 import com.ygochecker.feature.search.SearchRoute
 import com.ygochecker.feature.settings.SettingsRoute
@@ -190,8 +188,7 @@ private fun LocalizedResources(language: AppLanguage, content: @Composable () ->
 private data class Destination(val route: String, val label: Int, val icon: ImageVector)
 
 /** Primary tabs — swipeable pager, all 5 get equal billing on the bottom bar.
- * Settings (and Overlay, reached from within Settings) live behind the gear
- * icon in the top bar instead — see LocalOpenSettings. */
+ * Settings live behind the gear icon in the top bar — see LocalOpenSettings. */
 private val primaryTabs = listOf(
     Destination("home", DesignR.string.nav_home, Icons.Default.Home),
     Destination("search", DesignR.string.nav_search, Icons.Default.Search),
@@ -228,15 +225,15 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
         tabIndex = index.coerceIn(0, primaryTabs.lastIndex)
     }
 
-    // Settings/Overlay have no back-stack entry of their own — without this,
+    // Settings has no back-stack entry of its own — without this,
     // the system back button exits the app instead of returning to the tabs.
     BackHandler(enabled = section != "tabs") {
-        section = if (section == "overlay") "settings" else "tabs"
+        section = "tabs"
     }
 
     CompositionLocalProvider(
         LocalOpenSettings provides if (section == "tabs") ({ section = "settings" }) else null,
-        LocalGoBack provides if (section != "tabs") ({ section = if (section == "overlay") "settings" else "tabs" }) else null,
+        LocalGoBack provides if (section != "tabs") ({ section = "tabs" }) else null,
     ) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
@@ -271,9 +268,7 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
                         onCheckUpdates = onCheckUpdates,
                         installedVersionName = BuildConfig.VERSION_NAME,
                         installedVersionCode = BuildConfig.VERSION_CODE,
-                        onOpenOverlay = { section = "overlay" },
                     )
-                    "overlay" -> OverlayRoute()
                     else -> HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),

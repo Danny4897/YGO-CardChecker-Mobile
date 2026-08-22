@@ -68,6 +68,26 @@
     <string name="flow_segoc_rule_text">Se questi si attivano insieme: tra i TUOI trigger scegli tu l\'ordine — vanno in chain per primi. Poi l\'avversario sceglie l\'ordine dei suoi — vanno dopo. La chain risolve a ritroso: quindi gli ultimi messi in chain si risolvono per primi.</string>
     <string name="flow_segoc_generic_note">Conviene di solito risolvere per ultimo l\'effetto che ti dà più informazione o scelta, per decidere con più dati.</string>
     <string name="flow_open_catalog">Sfoglia i flow HAT curati</string>
+    <string name="flow_lesson_section">Lezioni SEGOC</string>
+    <string name="flow_lesson_empty">Nessun trigger simultaneo in questo mazzo. Aggiungi un avversario o altre carte trigger.</string>
+    <string name="flow_lesson_event">Sta per accadere un evento a cui queste carte rispondono.</string>
+    <string name="flow_lesson_your_triggers">Queste carte nel TUO mazzo possono andare in chain.</string>
+    <string name="flow_lesson_you_order">Scegli tu l\'ordine — vanno in chain per primi (APNAP).</string>
+    <string name="flow_lesson_opp_order">Poi l\'avversario ordina i suoi — vanno dopo i tuoi.</string>
+    <string name="flow_lesson_resolve_lifo">La chain risolve a ritroso: l\'ultima carta messa si risolve per prima.</string>
+    <string name="flow_lesson_field">Campo</string>
+    <string name="puzzle_section">Puzzle</string>
+    <string name="puzzle_title">Puzzle</string>
+    <string name="puzzle_play">Gioca</string>
+    <string name="puzzle_confirm">Conferma chain</string>
+    <string name="puzzle_wrong_chain">Ordine sbagliato. Ricostruisci la chain (i tuoi trigger prima, o la when-card come CL1).</string>
+    <string name="puzzle_opponent_section">Avversario puzzle</string>
+    <string name="puzzle_no_opponent">Nessuno</string>
+    <string name="puzzle_mark_opponent">Usa questo mazzo come avversario Puzzle</string>
+    <string name="settings_mdpro_title">Artwork MDPro3</string>
+    <string name="settings_mdpro_body">Cartella che contiene Picture/Art. Vuota = art YGOPRODeck.</string>
+    <string name="settings_mdpro_path">Path root MDPro3</string>
+    <string name="settings_mdpro_save">Salva cartella</string>
     <string name="flow_back_to_coach">Torna al coach</string>
     <string name="flow_pick_deck">Scegli un mazzo</string>
     <string name="flow_empty_deck">Apri o importa prima un mazzo.</string>

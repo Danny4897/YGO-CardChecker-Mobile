@@ -40,6 +40,7 @@ interface DeckRepository {
     suspend fun setCard(id: Long, card: Card, quantity: Int, section: DeckSection)
     suspend fun setCoverCards(id: Long, coverCardIds: List<Int>)
     suspend fun setPublic(id: Long, isPublic: Boolean)
+    suspend fun setPuzzleOpponent(id: Long, isPuzzleOpponent: Boolean)
     suspend fun persistImported(name: String, cards: List<DeckCard>): AppResult<Long>
     suspend fun importText(text: String): AppResult<List<DeckCard>>
     fun exportText(cards: List<DeckCard>): String
@@ -326,6 +327,19 @@ fun interface SetDeckPublic {
 }
 class DefaultSetDeckPublic @Inject constructor(private val repo: DeckRepository) : SetDeckPublic {
     override suspend fun invoke(deckId: Long, isPublic: Boolean) = repo.setPublic(deckId, isPublic)
+}
+
+fun interface SetDeckPuzzleOpponent {
+    suspend fun invoke(deckId: Long, isPuzzleOpponent: Boolean)
+}
+class DefaultSetDeckPuzzleOpponent @Inject constructor(private val repo: DeckRepository) : SetDeckPuzzleOpponent {
+    override suspend fun invoke(deckId: Long, isPuzzleOpponent: Boolean) =
+        repo.setPuzzleOpponent(deckId, isPuzzleOpponent)
+}
+
+interface MdproAssetSettings {
+    fun rootPath(): Flow<String?>
+    suspend fun setRootPath(path: String?)
 }
 
 

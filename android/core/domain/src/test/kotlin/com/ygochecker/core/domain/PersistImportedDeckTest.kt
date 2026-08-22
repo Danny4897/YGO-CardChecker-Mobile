@@ -39,6 +39,7 @@ private class RecordingDeckRepository : DeckRepository {
     override suspend fun setCard(id: Long, card: Card, quantity: Int, section: DeckSection) = Unit
     override suspend fun setCoverCards(id: Long, coverCardIds: List<Int>) = Unit
     override suspend fun setPublic(id: Long, isPublic: Boolean) = Unit
+    override suspend fun setPuzzleOpponent(id: Long, isPuzzleOpponent: Boolean) = Unit
     override suspend fun importText(text: String): AppResult<List<DeckCard>> = error("not used")
     override fun exportText(cards: List<DeckCard>): String = error("not used")
     override suspend fun importYdke(uri: String): AppResult<List<DeckCard>> = error("not used")

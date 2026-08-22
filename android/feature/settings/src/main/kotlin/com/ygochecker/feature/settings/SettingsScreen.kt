@@ -53,6 +53,7 @@ import com.ygochecker.core.designsystem.SettingsGroup
 import com.ygochecker.core.designsystem.errorMessage
 import com.ygochecker.core.domain.FormatPreference
 import com.ygochecker.core.domain.LanguagePreference
+import com.ygochecker.core.domain.MdproAssetSettings
 import com.ygochecker.core.domain.ObserveOfflinePack
 import com.ygochecker.core.domain.SocialRepository
 import com.ygochecker.core.domain.SyncAllKnowledge
@@ -78,12 +79,14 @@ import androidx.compose.runtime.setValue
 class SettingsViewModel @Inject constructor(
     private val formats: FormatPreference,
     private val languages: LanguagePreference,
+    private val mdproAssets: MdproAssetSettings,
     private val observePack: ObserveOfflinePack,
     private val syncAll: SyncAllKnowledge,
     private val social: SocialRepository,
 ) : ViewModel() {
     val format = formats.values.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GameFormat.TCG)
     val language = languages.values.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppLanguage.ENGLISH)
+    val mdproRoot = mdproAssets.rootPath().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val authState = social.observeAuthState().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SocialAuthState.SIGNED_OUT)
     private val _magicLinkSent = MutableStateFlow(false)
     val magicLinkSent = _magicLinkSent.asStateFlow()
@@ -100,6 +103,7 @@ class SettingsViewModel @Inject constructor(
 
     fun setFormat(value: GameFormat) = viewModelScope.launch { formats.set(value) }
     fun setLanguage(value: AppLanguage) = viewModelScope.launch { languages.set(value) }
+    fun setMdproRoot(path: String) = viewModelScope.launch { mdproAssets.setRootPath(path) }
     fun clearNotice() { _notice.value = null }
     fun clearStuckProgress() = observePack.clearProgress()
 
@@ -128,11 +132,11 @@ fun SettingsRoute(
     onCheckUpdates: (() -> Unit)? = null,
     installedVersionName: String = "",
     installedVersionCode: Int = 0,
-    onOpenOverlay: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val format by vm.format.collectAsStateWithLifecycle()
     val language by vm.language.collectAsStateWithLifecycle()
+    val mdproRoot by vm.mdproRoot.collectAsStateWithLifecycle()
     val pack by vm.packStatus.collectAsStateWithLifecycle()
     val progress by vm.progress.collectAsStateWithLifecycle()
     val notice by vm.notice.collectAsStateWithLifecycle()
@@ -320,33 +324,28 @@ fun SettingsRoute(
         }
 
         SettingsGroup(
-            title = stringResource(DesignR.string.nav_overlay),
+            title = stringResource(DesignR.string.settings_mdpro_title),
             modifier = Modifier.padding(top = DuelSpacing.space5),
-            icon = Icons.Default.Visibility,
+            icon = Icons.Default.Style,
         ) {
             Text(
-                stringResource(DesignR.string.overlay_subtitle),
+                stringResource(DesignR.string.settings_mdpro_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onOpenOverlay)
-                    .padding(vertical = DuelSpacing.space2),
-                verticalAlignment = Alignment.CenterVertically,
+            var draft by remember(mdproRoot) { mutableStateOf(mdproRoot.orEmpty()) }
+            OutlinedTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                modifier = Modifier.fillMaxWidth().padding(top = DuelSpacing.space2),
+                singleLine = true,
+                label = { Text(stringResource(DesignR.string.settings_mdpro_path)) },
+            )
+            Button(
+                onClick = { vm.setMdproRoot(draft) },
+                modifier = Modifier.fillMaxWidth().padding(top = DuelSpacing.space2).heightIn(min = 48.dp),
             ) {
-                Text(
-                    stringResource(DesignR.string.overlay_title),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowForwardIos,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text(stringResource(DesignR.string.settings_mdpro_save))
             }
         }
 

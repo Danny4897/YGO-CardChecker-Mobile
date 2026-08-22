@@ -332,6 +332,7 @@ private class MutableDeckRepository(initial: Decklist) : DeckRepository {
     }
     override suspend fun setCoverCards(id: Long, coverCardIds: List<Int>) = Unit
     override suspend fun setPublic(id: Long, isPublic: Boolean) = Unit
+    override suspend fun setPuzzleOpponent(id: Long, isPuzzleOpponent: Boolean) = Unit
     override suspend fun persistImported(name: String, cards: List<DeckCard>) = error("unused")
     override suspend fun importText(text: String) = error("unused")
     override fun exportText(cards: List<DeckCard>) = error("unused")

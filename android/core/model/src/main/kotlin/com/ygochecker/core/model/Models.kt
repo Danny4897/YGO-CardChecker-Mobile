@@ -109,6 +109,8 @@ data class Decklist(
     val coverCardIds: List<Int> = emptyList(),
     /** Visible on profile when true; private decks stay device-only. */
     val isPublic: Boolean = false,
+    /** When true this list can be selected as the Puzzle opponent. */
+    val isPuzzleOpponent: Boolean = false,
 )
 
 enum class LinkedAccountProvider { DISCORD, GOOGLE, KONAMI }

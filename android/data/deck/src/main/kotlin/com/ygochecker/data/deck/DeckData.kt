@@ -41,6 +41,7 @@ data class DeckEntity(
     val coverCardId1: Int? = null,
     val coverCardId2: Int? = null,
     val isPublic: Boolean = false,
+    val isPuzzleOpponent: Boolean = false,
 )
 @Entity(tableName = "deck_cards", primaryKeys = ["deckId", "cardId", "section"])
 data class DeckCardEntity(
@@ -58,6 +59,8 @@ data class DeckCardEntity(
     suspend fun setCovers(id: Long, c1: Int?, c2: Int?, now: Long)
     @Query("UPDATE decks SET isPublic=:isPublic, updatedAt=:now WHERE id=:id")
     suspend fun setPublic(id: Long, isPublic: Boolean, now: Long)
+    @Query("UPDATE decks SET isPuzzleOpponent=:flag, updatedAt=:now WHERE id=:id")
+    suspend fun setPuzzleOpponent(id: Long, flag: Boolean, now: Long)
     @Query("DELETE FROM decks WHERE id=:id") suspend fun delete(id: Long)
     @Query("DELETE FROM deck_cards WHERE deckId=:deckId AND cardId=:cardId AND section=:section")
     suspend fun removeCard(deckId: Long, cardId: Int, section: String)
@@ -80,7 +83,7 @@ data class DeckCardEntity(
         FriendEntity::class,
         ReplayEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class DeckDatabase : RoomDatabase() {
@@ -120,6 +123,7 @@ class RoomDeckFlowLinkRepository @Inject constructor(
                 cards = sortDeckCards(byDeck[deck.id].orEmpty().map(DeckCardEntity::toModel)),
                 coverCardIds = listOfNotNull(deck.coverCardId1, deck.coverCardId2),
                 isPublic = deck.isPublic,
+                isPuzzleOpponent = deck.isPuzzleOpponent,
             )
         }
     }
@@ -132,6 +136,7 @@ class RoomDeckFlowLinkRepository @Inject constructor(
                 sortDeckCards(items.map(DeckCardEntity::toModel)),
                 listOfNotNull(it.coverCardId1, it.coverCardId2),
                 it.isPublic,
+                it.isPuzzleOpponent,
             )
         }
     }
@@ -149,6 +154,9 @@ class RoomDeckFlowLinkRepository @Inject constructor(
     }
     override suspend fun setPublic(id: Long, isPublic: Boolean) {
         dao.setPublic(id, isPublic, System.currentTimeMillis())
+    }
+    override suspend fun setPuzzleOpponent(id: Long, isPuzzleOpponent: Boolean) {
+        dao.setPuzzleOpponent(id, isPuzzleOpponent, System.currentTimeMillis())
     }
     override suspend fun persistImported(name: String, cards: List<DeckCard>): AppResult<Long> {
         val normalized = normalizeImportedCards(cards)
@@ -199,11 +207,13 @@ private fun DeckCardEntity.toModel() = DeckCard(Card(cardId, name, type), quanti
 val Context.appPrefsStore by preferencesDataStore("settings")
 @Singleton class DataStorePreferenceRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-) : PreferenceRepository {
+) : PreferenceRepository, MdproAssetSettings {
     private val formatKey = stringPreferencesKey("format")
     private val languageKey = stringPreferencesKey("language")
+    private val mdproRootKey = stringPreferencesKey("mdpro_root")
     override val format = context.appPrefsStore.data.map { p -> GameFormat.entries.firstOrNull { it.id == p[formatKey] } ?: GameFormat.TCG }
     override val language = context.appPrefsStore.data.map { p -> AppLanguage.entries.firstOrNull { it.id == p[languageKey] } ?: AppLanguage.ENGLISH }
+    override fun rootPath(): Flow<String?> = context.appPrefsStore.data.map { p -> p[mdproRootKey] }
     override suspend fun setFormat(value: GameFormat) { context.appPrefsStore.edit { it[formatKey] = value.id } }
     override suspend fun setLanguage(value: AppLanguage) {
         context.appPrefsStore.edit { it[languageKey] = value.id }
@@ -211,5 +221,10 @@ val Context.appPrefsStore by preferencesDataStore("settings")
         androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(
             androidx.core.os.LocaleListCompat.forLanguageTags(value.id),
         )
+    }
+    override suspend fun setRootPath(path: String?) {
+        context.appPrefsStore.edit {
+            if (path.isNullOrBlank()) it.remove(mdproRootKey) else it[mdproRootKey] = path.trim()
+        }
     }
 }

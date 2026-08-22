@@ -2,6 +2,8 @@
 
 ## Open
 
+- **SEGOC Field + Puzzle** — implementato su `refactor/segoc-tmm-field`, committato 2026-08-22. Verifier: overlay **modulo** rimosso (Gradle/app/route/permessi); `TimingRuleEngine` tenuto. JUnit `:core:model` 34 file test / `:core:domain` OK (JBR 21 — serve `JAVA_HOME` puntato a `Android Studio/jbr`, non al JDK di sistema, altrimenti Gradle rompe su `DefaultTestTaskReports`). `assembleDebug` OK + smoke emulatore OK (nessun crash, bottom nav senza Overlay). Aperti: stringhe HUD overlay morte, `WHATS_NEW` ancora menziona Overlay, Room v6 via `fallbackToDestructiveMigration` (wipe mazzi), smoke puzzle **su mazzo reale con carte SEGOC** non ancora fatto (serve rete per popolare catalogo su emulatore pulito).
+- **SEGOC recipe library (curato, non generato)** — prossimo step: libreria di linee combo scritte a mano per starter/archetipo (non calcolate), match automatico sulla mano aperta, SEGOC/Puzzle sopra come arbitro. Vedi sessione https://claude.ai/code/session_01HgL2QSmmu114TAjWy5wfFu per il design ragionato (auto-solve scartato: spazio di ricerca intrattabile con effetti opzionali/target/informazione nascosta).
 - **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
 - **Nuove feature DB-powered** — lista spesa mazzo↔collezione, meta snapshot mazzi pubblici, alert banlist
   schedulati (schema `user_alerts`/`banlist_snapshots` già pronto lato Supabase, non ancora popolato)
@@ -11,6 +13,7 @@
 
 ## Done
 
+- 2026-08-22: **Verifier (SEGOC Field)** — PASS claimed Android work. Overlay module gone (`settings.gradle.kts` / app deps / no OverlayRoute / no SYSTEM_ALERT_WINDOW). Gradle `:core:model:testDebugUnitTest` 44/44 + `:core:domain:testDebugUnitTest` 18/18 (JAVA_HOME jdk-17.0.16.8-hotspot). SegocLessonBuilderTest/PuzzleInstantiatorTest match impl. npm ChromeHeadless 53/53 + build OK. harness validate FAIL (AGENTS.md sections, pre-existing). Emulator/assembleDebug not reproduced.
 - 2026-08-21: **SEGOC Flow Coach** (branch `refactor/segoc-flow-coach`, spec `docs/superpowers/specs/2026-08-21-segoc-flow-coach-design.md`,
   plan `docs/superpowers/plans/2026-08-21-segoc-flow-coach.md`) — Flow tab passa da catalogo HAT curato a coach sul
   mazzo attivo. Nuova pipeline `segoc-parser.ts` (ygo-card-checker/tools/card-knowledge-db) estrae per l'intero

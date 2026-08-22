@@ -56,6 +56,7 @@ private object UnsupportedTriggerPairDeckRepository : DeckRepository {
     ) = error("unused")
     override suspend fun setCoverCards(id: Long, coverCardIds: List<Int>) = error("unused")
     override suspend fun setPublic(id: Long, isPublic: Boolean) = error("unused")
+    override suspend fun setPuzzleOpponent(id: Long, isPuzzleOpponent: Boolean) = error("unused")
     override suspend fun persistImported(
         name: String,
         cards: List<DeckCard>,

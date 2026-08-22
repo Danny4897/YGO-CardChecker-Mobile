@@ -56,6 +56,8 @@ abstract class DependencyModule {
     @Binds abstract fun observePack(value: DefaultObserveOfflinePack): ObserveOfflinePack
     @Binds abstract fun setDeckCovers(value: DefaultSetDeckCovers): SetDeckCovers
     @Binds abstract fun setDeckPublic(value: DefaultSetDeckPublic): SetDeckPublic
+    @Binds abstract fun setDeckPuzzleOpponent(value: DefaultSetDeckPuzzleOpponent): SetDeckPuzzleOpponent
+    @Binds abstract fun mdproAssetSettings(value: DataStorePreferenceRepository): MdproAssetSettings
     @Binds abstract fun getEffectScript(value: DefaultGetEffectScript): GetEffectScript
     @Binds abstract fun getEffectScripts(value: DefaultGetEffectScripts): GetEffectScripts
     @Binds abstract fun getSegocProfile(value: DefaultGetSegocProfile): GetSegocProfile

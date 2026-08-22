@@ -85,7 +85,6 @@ dependencies {
     implementation(project(":feature:search"))
     implementation(project(":feature:decklist"))
     implementation(project(":feature:settings"))
-    implementation(project(":feature:overlay"))
     implementation(project(":feature:flow"))
     implementation(project(":feature:profile"))
     implementation(libs.androidx.appcompat)
