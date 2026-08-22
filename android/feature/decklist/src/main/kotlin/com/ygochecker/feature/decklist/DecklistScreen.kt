@@ -384,6 +384,15 @@ data class DeckComboReportUi(
         val id = profile.createCollection(trimmed)
         profile.addCardToCollection(id, cardId)
     }
+    fun openCard(card: Card) = viewModelScope.launch {
+        val localized = getLocalized.invoke(card.id, language.value) ?: card
+        val section = if (isExtraDeckType(localized.type)) DeckSection.EXTRA else DeckSection.MAIN
+        val inDeck = selected.value?.cards
+            ?.filter { it.card.id == localized.id && it.section == section }
+            ?.sumOf { it.quantity }
+            ?: 0
+        openDetail(DeckCard(localized, inDeck, section))
+    }
     fun openRelated(ref: RelatedCardRef) = viewModelScope.launch {
         val localized = getLocalized.invoke(ref.id, language.value)
             ?: Card(id = ref.id, name = ref.name, type = "", imageUrl = ref.imageUrl)
@@ -637,6 +646,7 @@ data class DeckComboReportUi(
             suggestions = suggestions,
             busy = vm.budgetBusy,
             onApply = vm::applyBudgetSwap,
+            onOpenCard = vm::openCard,
             onDismiss = vm::closeBudgetSuggestions,
         )
     }
@@ -1473,6 +1483,7 @@ private fun BudgetSwapSheet(
     suggestions: List<BudgetSwapSuggestion>,
     busy: Boolean,
     onApply: (BudgetSwapSuggestion) -> Unit,
+    onOpenCard: (Card) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1513,6 +1524,7 @@ private fun BudgetSwapSheet(
                                     style = MaterialTheme.typography.bodyMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.clickable { onOpenCard(s.expensive.card) },
                                 )
                                 Text(
                                     "→ ${s.alternative.name} (${formatPriceEur(s.alternative.priceEur ?: 0.0)})",
@@ -1520,6 +1532,7 @@ private fun BudgetSwapSheet(
                                     color = MaterialTheme.colorScheme.primary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.clickable { onOpenCard(s.alternative) },
                                 )
                                 Text(
                                     stringResource(DesignR.string.editor_budget_savings, formatPriceEur(s.savingsEur)),
