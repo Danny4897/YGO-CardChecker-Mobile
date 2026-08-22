@@ -1,6 +1,6 @@
 {
   "versionCode": 23,
-  "versionName": "0.6.1",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.6.1/app-release.apk",
-  "changelog": "Fix: prezzo/valore mazzo e Budget helper ora leggono i dati reali delle carte in editor (prima mostravano sempre vuoto). Duel Helper: sconfitta/vittoria rilevata in automatico a 0 LP con log risultato rapido."
+  "versionName": "0.6.0.1",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.6.0.1/app-release.apk",
+  "changelog": "Fix: prezzo/valore mazzo e Budget helper ora leggono i dati reali delle carte (prima erano sempre vuoti). Duel Helper: sconfitta/vittoria rilevata automaticamente a 0 LP con log risultato rapido."
 }

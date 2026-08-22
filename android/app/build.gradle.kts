@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 23
-        versionName = "0.6.1"
+        versionName = "0.6.0.1"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
