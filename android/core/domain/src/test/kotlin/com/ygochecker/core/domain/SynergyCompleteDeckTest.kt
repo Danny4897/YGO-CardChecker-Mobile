@@ -306,6 +306,7 @@ private class FakeCards(private val byId: Map<Int, Card>) : CardRepository {
     override fun browsePlayable(format: GameFormat, limit: Int): Flow<List<Card>> = flowOf(emptyList())
     override fun randomPlayable(format: GameFormat): Flow<Card?> = flowOf(null)
     override suspend fun get(id: Int) = byId[id]
+    override suspend fun getByIds(ids: Collection<Int>) = ids.mapNotNull { byId[it] }
     override suspend fun all() = byId.values.toList()
     override suspend fun count() = byId.size
     override suspend fun ensureCatalogReady() = Unit

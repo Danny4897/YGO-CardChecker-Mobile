@@ -1,6 +1,6 @@
 {
-  "versionCode": 23,
-  "versionName": "0.6.0.1",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.6.0.1/app-release.apk",
-  "changelog": "Fix: prezzo/valore mazzo e Budget helper ora leggono i dati reali delle carte (prima erano sempre vuoti). Duel Helper: sconfitta/vittoria rilevata automaticamente a 0 LP con log risultato rapido."
+  "versionCode": 24,
+  "versionName": "0.7.0",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.7.0/app-release.apk",
+  "changelog": "Motore SEGOC arbitro: ordine chain/APNAP/LIFO validato passo-passo su lezioni generate dal tuo mazzo, puzzle di allenamento (segui la chain corretta), board stile MDPro3. Libreria di linee combo curate (in crescita). Rimosso overlay MDPRO (screen-capture), sostituito dal nuovo Field/Puzzle."
 }
