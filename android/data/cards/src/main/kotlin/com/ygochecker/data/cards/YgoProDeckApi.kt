@@ -159,10 +159,19 @@ internal fun parseCardInfo(json: String): List<Card> {
                     level = row.optIntOrNull("level") ?: row.optIntOrNull("linkval"),
                     description = row.optString("desc"),
                     year = parsePrintYear(row),
+                    priceEur = parseCardmarketPrice(row),
                 ),
             )
         }
     }
+}
+
+/** `card_prices[0].cardmarket_price` — Cardmarket (EUR) is the most relevant source for an EU audience. */
+private fun parseCardmarketPrice(row: JSONObject): Double? {
+    val prices = row.optJSONArray("card_prices") ?: return null
+    val first = prices.optJSONObject(0) ?: return null
+    val raw = first.optString("cardmarket_price").ifBlank { return null }
+    return raw.toDoubleOrNull()?.takeIf { it > 0.0 }
 }
 
 private fun parsePrintYear(row: JSONObject): Int? {

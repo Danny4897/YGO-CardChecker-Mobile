@@ -2,6 +2,16 @@
 
 ## Open
 
+- **Trade tra amici** — esplicitamente rimandato dall'utente finché social/community non è potenziato
+  (vedi voce sbloccante sopra); poi anche un flusso "fake" con CPU per testarlo lato UI senza un secondo account.
+- **Camera scan v2** — v1 (sotto, Done) fa OCR solo sul primo text block per fuzzy-match nome; da valutare
+  vero image-matching (art/foil) per i casi in cui l'OCR non arriva a un match affidabile.
+- **Budget helper v2** — oggi 1 sostituzione per carta costosa via synergy graph (`GetRelatedCards`) filtrata
+  per prezzo più basso; non tiene conto di ruolo funzionale (starter vs extender) né di combo breakage.
+- **SEGOC**: direzione da confermare con l'utente — proposta discussa (non ancora implementata): smettere di
+  puntare a un "solver" che genera linee combo automaticamente (spazio di ricerca intrattabile, nessun tool
+  della community lo fa) e invece usare SEGOC come *arbitro* (ordine chain/APNAP/LIFO, missed timing) sopra
+  una libreria di combo-recipe curate/community (starter → linea), matchate sulla mano reale in Flow.
 - **BLOCCANTE social — abilitare "Anonymous sign-ins"** nel dashboard Supabase del progetto `ygochecker`
   (`ubflewrwtpbrbkjdohfx`) → Authentication → Providers, e confermare il redirect URL
   `ygochecker://oauth/magiclink` in Authentication → URL Configuration. Verificato via MCP Supabase
@@ -17,6 +27,40 @@
 - **Cloud sync** profilo/amici/mazzi/replay keyed by Discord/Google subject
 
 ## Done
+
+- 2026-08-22: **Prezzo carte, valore mazzo, budget helper, Compagno da torneo, Scan v1** (branch
+  `claude/app-innovation-ideas-t2s7fv`) — quattro feature nuove in un giro, **nessuna compilazione
+  verificata in questo sandbox** (stesso limite di rete noto: `dl.google.com`/AGP bloccato dal proxy),
+  quindi review del codice/PR prima di mergiare:
+  - **Prezzo (Cardmarket via YGOPRODeck)**: `Card.priceEur`/`CardEntity.priceEur` (nullable, `CardDatabase`
+    v5→6, cache re-scaricabile → wipe sicuro); `YgoProDeckApi.parseCardInfo` ora legge
+    `card_prices[0].cardmarket_price`. Si popola per le carte che passano da ricerca/YDKE/**Scarica tutto**
+    (Impostazioni) — quest'ultimo fa `insertAll` REPLACE su tutto il catalogo, quindi è il modo per
+    retro-popolare i prezzi sui mazzi già esistenti; il pacchetto offline bundlato (`cards-hat.json.gz`)
+    resta senza prezzo finché non gira un sync online. Prezzo mostrato in dettaglio carta, riga ricerca,
+    badge "valore mazzo" (somma qty×prezzo, suffisso `+` se alcune carte non hanno ancora prezzo) nell'header
+    Decklist.
+  - **Budget helper**: nuovo use case `SuggestBudgetSwaps` (core:domain) — per le carte Main/Side più costose
+    (>= 1€) cerca alternative via `GetRelatedCards` (synergy graph esistente) più economiche, non già in
+    mazzo; menu Decklist → "Ottimizza budget" apre bottom sheet con swap 1-click.
+  - **Compagno da torneo**: nuovo database Room **separato** `tournament.db` (`TournamentDatabase`, entità
+    `DeckNotesEntity`/`TournamentMatchEntity`) — deliberatamente NON aggiunto a `DeckDatabase` esistente,
+    che ha `fallbackToDestructiveMigration()` e contiene dati utente reali (mazzi/amici/collezioni): bumpare
+    la sua versione avrebbe cancellato tutto agli utenti già installati. Menu Decklist → "Compagno da
+    torneo" apre dialog full-screen con note forza/debolezza/strategia per mazzo, log incontri (round,
+    avversario, risultato, W/L/D per game, side-deck tracker strutturato con chip picker Main→Side/Side→Main
+    sulle carte reali del mazzo), e Duel Helper (life counter P1/P2 + chess clock, non persistito).
+  - **Scan v1**: nuovo modulo Gradle `feature:scan` (CameraX, non presente prima — ML Kit text-recognition
+    invece era già usato per l'overlay MDPro via screen-capture, riusato lo stesso client). OCR sul primo
+    text block, fuzzy-match (Levenshtein) contro il catalogo offline via `CardRepository.search`, overlay
+    live con nome/tipo/prezzo carta + tasto "Aggiungi a collezione". Raggiungibile da una nuova shortcut in
+    Home ("Scansiona una carta"); nuova sezione `"scan"` nello state machine di `MainActivity` (stesso
+    meccanismo di Overlay), niente drawer nuovo (quello esistente era già dead code/import inutilizzato).
+    Permesso CAMERA dichiarato nel manifest del modulo (pattern già usato da `feature:overlay` per i suoi
+    permessi). v1 limitato: matching sul solo nome (no vero image-matching), un solo text block (il più in
+    alto, tipicamente dove sta il nome carta).
+  - Punti di roadmap discussi ma NON implementati in questo giro (vedi **Open**): trade tra amici (dopo
+    fix social), evoluzione SEGOC verso "arbitro + combo recipe" invece di solver, v2 di scan/budget helper.
 
 - 2026-08-22: **Fix thread mazzo pubblico irraggiungibile** (branch `claude/app-innovation-ideas-t2s7fv`) —
   root cause diagnosticata via MCP Supabase: `DecklistScreen.setVisibility` scartava l'`AppResult` di

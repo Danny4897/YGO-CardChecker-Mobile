@@ -88,6 +88,7 @@ dependencies {
     implementation(project(":feature:overlay"))
     implementation(project(":feature:flow"))
     implementation(project(":feature:profile"))
+    implementation(project(":feature:scan"))
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

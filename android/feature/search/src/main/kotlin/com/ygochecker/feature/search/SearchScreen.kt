@@ -97,6 +97,7 @@ import com.ygochecker.core.designsystem.StatusChip
 import com.ygochecker.core.designsystem.StatusTone
 import com.ygochecker.core.designsystem.ThemedScreenHeader
 import com.ygochecker.core.designsystem.effectMechanicLabel
+import com.ygochecker.core.designsystem.formatPriceEur
 import com.ygochecker.core.domain.CreateDecklist
 import com.ygochecker.core.domain.EvaluateDeckLegality
 import com.ygochecker.core.domain.FormatPreference
@@ -883,6 +884,13 @@ private fun SearchCardRow(
                     },
                     tone = tone,
                 )
+                card.priceEur?.let {
+                    Text(
+                        formatPriceEur(it),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
             FilledTonalIconButton(onClick = onAdd, enabled = maximum > 0) {
                 Icon(Icons.Default.Add, addDescription)

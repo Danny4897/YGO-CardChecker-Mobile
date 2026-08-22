@@ -39,6 +39,7 @@ data class CardEntity(
     val level: Int?,
     val description: String,
     val year: Int? = null,
+    val priceEur: Double? = null,
 )
 
 @Entity(tableName = "format_limits", primaryKeys = ["cardId", "format"])
@@ -321,7 +322,7 @@ interface CardDao {
         SyncMetaEntity::class,
         SegocProfileEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class CardDatabase : RoomDatabase() {
@@ -495,10 +496,10 @@ class RoomCardRepository @Inject constructor(
 }
 
 internal fun CardEntity.toModel() =
-    Card(id, name, type, race, attribute, attack, defense, level, description, year)
+    Card(id, name, type, race, attribute, attack, defense, level, description, year, priceEur = priceEur)
 
 internal fun Card.toEntity() =
-    CardEntity(id, name, type, race, attribute, attack, defense, level, description, year)
+    CardEntity(id, name, type, race, attribute, attack, defense, level, description, year, priceEur)
 
 internal fun SegocProfileEntity.toSummary() = com.ygochecker.core.model.SegocProfileSummary(
     cardId = cardId,
