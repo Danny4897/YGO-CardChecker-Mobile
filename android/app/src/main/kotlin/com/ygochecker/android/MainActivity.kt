@@ -78,6 +78,7 @@ import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.feature.decklist.DecksRoute
 import com.ygochecker.feature.flow.FlowRoute
 import com.ygochecker.feature.home.HomeRoute
+import com.ygochecker.feature.scan.ScanRoute
 import com.ygochecker.feature.profile.ProfileRoute
 import com.ygochecker.feature.search.SearchRoute
 import com.ygochecker.feature.settings.SettingsRoute
@@ -269,6 +270,7 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
                         installedVersionName = BuildConfig.VERSION_NAME,
                         installedVersionCode = BuildConfig.VERSION_CODE,
                     )
+                    "scan" -> ScanRoute()
                     else -> HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
@@ -280,6 +282,7 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
                                 onOpenSearch = { goTabs(primaryTabs.indexOfFirst { it.route == "search" }) },
                                 onOpenDecks = { goTabs(primaryTabs.indexOfFirst { it.route == "decks" }) },
                                 onOpenFlow = { goTabs(primaryTabs.indexOfFirst { it.route == "flow" }) },
+                                onOpenScan = { section = "scan" },
                             )
                             "search" -> SearchRoute()
                             "decks" -> DecksRoute()

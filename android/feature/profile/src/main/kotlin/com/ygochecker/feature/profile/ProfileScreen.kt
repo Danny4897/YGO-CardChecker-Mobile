@@ -322,7 +322,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    /** Publish if needed, then open thread. Always invokes onOpened when a thread id is available. */
+    /** Publish if needed, then open thread. Only invokes onOpened once the deck actually exists remotely. */
     fun openMyPublicDeck(local: Decklist, onOpened: (String) -> Unit) = viewModelScope.launch {
         openingDeckId = local.id
         val sessionUser = meSocial ?: run {
@@ -346,8 +346,8 @@ class ProfileViewModel @Inject constructor(
                 onOpened(r.value.ifBlank { provisional })
             }
             is AppResult.Err -> {
-                // Still open via owner/local path — getPublicDeck resolves it.
-                onOpened(provisional)
+                // Do NOT open the thread: the deck was never actually written remotely,
+                // so getPublicDeck would just 404 on an id nobody ever persisted.
                 notice = r.error.errorKey
             }
         }
@@ -470,12 +470,22 @@ fun ProfileRoute(vm: ProfileViewModel = hiltViewModel()) {
             )
         }
         notice?.let { key ->
-            Text(
-                errorMessage(key),
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(horizontal = DuelSpacing.space4, vertical = 4.dp),
-            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = DuelSpacing.space4, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    errorMessage(key),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { vm.clearNotice(); vm.bootstrap() }) {
+                    Text(stringResource(DesignR.string.profile_retry))
+                }
+            }
         }
     }
 }

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Extension
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
@@ -46,6 +48,7 @@ import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -116,7 +119,9 @@ import com.ygochecker.core.designsystem.ThemedScreenHeader
 import com.ygochecker.core.designsystem.StatusChip
 import com.ygochecker.core.designsystem.StatusTone
 import com.ygochecker.core.designsystem.errorMessage
+import com.ygochecker.core.designsystem.formatPriceEur
 import com.ygochecker.core.domain.AnalyzeDeckCombos
+import com.ygochecker.core.domain.BudgetSwapSuggestion
 import com.ygochecker.core.domain.CompleteDeck
 import com.ygochecker.core.domain.CreateDecklist
 import com.ygochecker.core.domain.DeleteDecklist
@@ -143,6 +148,7 @@ import com.ygochecker.core.domain.SetDeckCovers
 import com.ygochecker.core.domain.SetDeckPublic
 import com.ygochecker.core.domain.SetDeckPuzzleOpponent
 import com.ygochecker.core.domain.SocialRepository
+import com.ygochecker.core.domain.SuggestBudgetSwaps
 import com.ygochecker.core.domain.SuggestCombosForCard
 import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.core.model.Card
@@ -192,6 +198,7 @@ data class DeckComboReportUi(
     private val getRelated: GetRelatedCards,
     private val suggestCombos: SuggestCombosForCard,
     private val analyzeDeckCombos: AnalyzeDeckCombos,
+    private val suggestBudgetSwaps: SuggestBudgetSwaps,
     private val completeDeckUseCase: CompleteDeck,
     private val generateDeckFlows: GenerateDeckFlows,
     private val importText: ImportDeckFromText,
@@ -231,6 +238,10 @@ data class DeckComboReportUi(
         private set
     var completeBusy by mutableStateOf(false)
         private set
+    var budgetSuggestions by mutableStateOf<List<BudgetSwapSuggestion>?>(null)
+        private set
+    var budgetBusy by mutableStateOf(false)
+        private set
 
     init {
         viewModelScope.launch {
@@ -246,8 +257,14 @@ data class DeckComboReportUi(
         setPublic.invoke(id, isPublic)
         val deck = getDeck.invoke(id).first()
         if (deck != null) {
-            if (isPublic) social.publishDeck(deck)
-            else social.unpublishDeck(id)
+            val result = if (isPublic) social.publishDeck(deck) else social.unpublishDeck(id)
+            if (result is AppResult.Err) {
+                // Remote publish/unpublish failed — don't leave the local flag claiming a
+                // state (e.g. "public") that was never actually reached on the server, or the
+                // deck becomes an unreachable thread in Profile.
+                setPublic.invoke(id, !isPublic)
+                completeNotice = "err:${result.error.errorKey}"
+            }
         }
     }
     fun setPuzzleOpponent(id: Long, isPuzzleOpponent: Boolean) = viewModelScope.launch {
@@ -255,6 +272,21 @@ data class DeckComboReportUi(
     }
     fun clearCompleteNotice() { completeNotice = null }
     fun closeComboReport() { comboReport = null }
+    fun closeBudgetSuggestions() { budgetSuggestions = null }
+    fun suggestBudget() = viewModelScope.launch {
+        val deck = selected.value ?: return@launch
+        budgetBusy = true
+        budgetSuggestions = suggestBudgetSwaps.invoke(deck.cards, format.value, maxSuggestions = 6)
+        budgetBusy = false
+    }
+    fun applyBudgetSwap(suggestion: BudgetSwapSuggestion) = viewModelScope.launch {
+        val id = selected.value?.id ?: return@launch
+        val maxCopies = evaluateLegality.maxCopies(suggestion.alternative.id, format.value)
+        val addQuantity = suggestion.expensive.quantity.coerceAtMost(maxCopies.coerceAtLeast(0))
+        setQuantity.invoke(id, suggestion.expensive.card, 0, suggestion.expensive.section)
+        if (addQuantity > 0) setQuantity.invoke(id, suggestion.alternative, addQuantity, suggestion.expensive.section)
+        suggestBudget()
+    }
     fun analyzeCombos() = viewModelScope.launch {
         val id = selected.value?.id ?: return@launch
         completeBusy = true
@@ -567,6 +599,7 @@ data class DeckComboReportUi(
             onCompleteDeck = vm::completeDeck,
             onGenerateFlows = vm::generateFlows,
             onAnalyzeCombos = vm::analyzeCombos,
+            onSuggestBudget = vm::suggestBudget,
             completeBusy = vm.completeBusy,
         )
         SnackbarHost(
@@ -598,6 +631,14 @@ data class DeckComboReportUi(
             onDismiss = vm::closeComboReport,
             onOpen = vm::openRelated,
             onAdd = vm::addRelated,
+        )
+    }
+    vm.budgetSuggestions?.let { suggestions ->
+        BudgetSwapSheet(
+            suggestions = suggestions,
+            busy = vm.budgetBusy,
+            onApply = vm::applyBudgetSwap,
+            onDismiss = vm::closeBudgetSuggestions,
         )
     }
     var saveCollectionOpen by remember { mutableStateOf(false) }
@@ -839,11 +880,13 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
     onCompleteDeck: (Int, Int, Int, Set<String>) -> Unit,
     onGenerateFlows: () -> Unit,
     onAnalyzeCombos: () -> Unit,
+    onSuggestBudget: () -> Unit,
     completeBusy: Boolean,
 ) {
     var section by remember { mutableStateOf(DeckSection.MAIN) }
     var menuOpen by remember { mutableStateOf(false) }
     var renameOpen by remember { mutableStateOf(false) }
+    var tournamentOpen by remember { mutableStateOf(false) }
     var deleteConfirmOpen by remember { mutableStateOf(false) }
     var completeOpen by remember { mutableStateOf(false) }
     var targetMain by remember { mutableStateOf("40") }
@@ -924,6 +967,9 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
                 }
             },
         )
+    }
+    if (tournamentOpen) {
+        TournamentCompanionDialog(deck = deck, onDismiss = { tournamentOpen = false })
     }
     if (completeOpen) {
         AlertDialog(
@@ -1076,6 +1122,17 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
                             enabled = !completeBusy,
                         )
                         DropdownMenuItem(
+                            text = { Text(stringResource(DesignR.string.editor_suggest_budget)) },
+                            leadingIcon = { Icon(Icons.Default.Savings, null) },
+                            onClick = { menuOpen = false; onSuggestBudget() },
+                            enabled = !completeBusy,
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(DesignR.string.editor_tournament_companion)) },
+                            leadingIcon = { Icon(Icons.Default.Bolt, null) },
+                            onClick = { menuOpen = false; tournamentOpen = true },
+                        )
+                        DropdownMenuItem(
                             text = {
                                 Text(
                                     if (deck.isPublic) {
@@ -1136,11 +1193,17 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = DuelSpacing.space4, vertical = DuelSpacing.space2),
                 shape = MaterialTheme.shapes.medium,
             ) {
-                Text(
-                    stringResource(DesignR.string.editor_format_banner, format.id.uppercase()),
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                )
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(DesignR.string.editor_format_banner, format.id.uppercase()),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    DeckValueBadge(deck.cards)
+                }
             }
             PrimaryTabRow(DeckSection.entries.indexOf(section)) {
                 DeckSection.entries.forEach { item ->
@@ -1277,6 +1340,16 @@ private fun EditorCardRow(
     }
 }
 
+/** Lower-bound estimate: cards with no known price yet (never fetched from YGOPRODeck) are excluded, and a "+"
+ * suffix flags that the true total is at least this high. Hidden entirely if no card has a price yet. */
+@Composable
+private fun DeckValueBadge(cards: List<DeckCard>) {
+    if (cards.none { it.card.priceEur != null }) return
+    val total = cards.sumOf { (it.card.priceEur ?: 0.0) * it.quantity }
+    val suffix = if (cards.any { it.card.priceEur == null }) "+" else ""
+    StatusChip(stringResource(DesignR.string.editor_deck_value, formatPriceEur(total) + suffix), StatusTone.Info)
+}
+
 @Composable
 private fun sectionLabel(section: DeckSection): String = stringResource(
     when (section) {
@@ -1375,6 +1448,78 @@ private fun DeckComboReportSheet(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(DuelSpacing.space2))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BudgetSwapSheet(
+    suggestions: List<BudgetSwapSuggestion>,
+    busy: Boolean,
+    onApply: (BudgetSwapSuggestion) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = DuelSpacing.space4)
+                .padding(bottom = DuelSpacing.space4)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+        ) {
+            Text(stringResource(DesignR.string.editor_budget_title), style = MaterialTheme.typography.titleLarge)
+            when {
+                busy -> Box(Modifier.fillMaxWidth().padding(vertical = DuelSpacing.space4), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                suggestions.isEmpty() -> Text(
+                    stringResource(DesignR.string.editor_budget_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> suggestions.forEach { s ->
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            Modifier.padding(DuelSpacing.space3),
+                            horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    "${s.expensive.card.name} (${formatPriceEur(s.expensive.card.priceEur ?: 0.0)})",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    "→ ${s.alternative.name} (${formatPriceEur(s.alternative.priceEur ?: 0.0)})",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    stringResource(DesignR.string.editor_budget_savings, formatPriceEur(s.savingsEur)),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            FilledTonalButton(onClick = { onApply(s) }) {
+                                Text(stringResource(DesignR.string.editor_budget_apply))
                             }
                         }
                     }

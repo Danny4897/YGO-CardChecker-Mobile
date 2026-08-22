@@ -1,6 +1,6 @@
 {
-  "versionCode": 21,
-  "versionName": "0.5.0",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.5.0/app-release.apk",
-  "changelog": "SEGOC Flow Coach: la tab Flow ora suggerisce le combo del tuo mazzo attivo seguendo le regole reali SEGOC (trigger simultanei, missed timing, spell speed). Il catalogo HAT resta disponibile come sezione secondaria."
+  "versionCode": 23,
+  "versionName": "0.6.0.1",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.6.0.1/app-release.apk",
+  "changelog": "Fix: prezzo/valore mazzo e Budget helper ora leggono i dati reali delle carte (prima erano sempre vuoti). Duel Helper: sconfitta/vittoria rilevata automaticamente a 0 LP con log risultato rapido."
 }

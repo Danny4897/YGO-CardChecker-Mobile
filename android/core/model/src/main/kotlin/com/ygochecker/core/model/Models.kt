@@ -13,6 +13,8 @@ data class Card(
     /** First TCG (or OCG) print year when known from catalog sync. */
     val year: Int? = null,
     val imageUrl: String = "https://images.ygoprodeck.com/images/cards_small/%d.jpg".format(id),
+    /** Cardmarket lowest price in EUR, from YGOPRODeck's `card_prices`. Null until fetched online. */
+    val priceEur: Double? = null,
 )
 
 enum class DeckSection { MAIN, EXTRA, SIDE }
@@ -271,4 +273,30 @@ data class RelatedCardRef(
     val score: Double,
     /** Full card art (not cropped small thumbnail). */
     val imageUrl: String = "https://images.ygoprodeck.com/images/cards/%d.jpg".format(id),
+)
+
+/** Free-form scouting notes kept per deck for tournament prep. */
+data class DeckNotes(
+    val deckId: Long,
+    val strengths: String = "",
+    val weaknesses: String = "",
+    val strategy: String = "",
+    val updatedAt: Long = 0,
+)
+
+enum class MatchResult { WIN, LOSS, DRAW }
+
+/** One round/match logged against a deck — best-of-3 game results plus what got sided. */
+data class TournamentMatch(
+    val id: Long = 0,
+    val deckId: Long,
+    val roundLabel: String,
+    val opponent: String,
+    val result: MatchResult,
+    /** Per-game results in play order, e.g. [WIN, LOSS, WIN]. */
+    val games: List<MatchResult> = emptyList(),
+    /** Human-readable summary of side-deck swaps made between games (built from a card picker). */
+    val sideNotes: String = "",
+    val notes: String = "",
+    val createdAt: Long = 0,
 )

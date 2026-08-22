@@ -77,9 +77,11 @@ abstract class DependencyModule {
     @Binds abstract fun generateDeckFlows(value: DefaultGenerateDeckFlows): GenerateDeckFlows
     @Binds abstract fun suggestCombosForCard(value: DefaultSuggestCombosForCard): SuggestCombosForCard
     @Binds abstract fun analyzeDeckCombos(value: DefaultAnalyzeDeckCombos): AnalyzeDeckCombos
+    @Binds abstract fun suggestBudgetSwaps(value: DefaultSuggestBudgetSwaps): SuggestBudgetSwaps
     @Binds abstract fun deckFlowLinks(value: RoomDeckFlowLinkRepository): DeckFlowLinkRepository
     @Binds abstract fun appUpdateRepository(value: com.ygochecker.android.update.HttpAppUpdateRepository): AppUpdateRepository
     @Binds abstract fun checkAppUpdate(value: DefaultCheckAppUpdate): CheckAppUpdate
+    @Binds abstract fun tournamentRepository(value: RoomTournamentRepository): TournamentRepository
 
     companion object {
         @Provides @Singleton fun okHttpClient(): OkHttpClient = YgoProDeckClient.defaultHttpClient()
@@ -105,5 +107,10 @@ abstract class DependencyModule {
         @Provides fun deckDao(database: DeckDatabase) = database.decks()
         @Provides fun profileDao(database: DeckDatabase) = database.profile()
         @Provides fun deckFlowLinkDao(database: DeckDatabase) = database.flowLinks()
+        @Provides @Singleton fun tournamentDatabase(@ApplicationContext context: Context): TournamentDatabase =
+            Room.databaseBuilder(context, TournamentDatabase::class.java, "tournament.db")
+                .fallbackToDestructiveMigration()
+                .build()
+        @Provides fun tournamentDao(database: TournamentDatabase) = database.tournament()
     }
 }

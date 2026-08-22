@@ -2,8 +2,23 @@
 
 ## Open
 
-- **SEGOC Field + Puzzle** — implementato su `refactor/segoc-tmm-field`, committato 2026-08-22. Verifier: overlay **modulo** rimosso (Gradle/app/route/permessi); `TimingRuleEngine` tenuto. JUnit `:core:model` 34 file test / `:core:domain` OK (JBR 21 — serve `JAVA_HOME` puntato a `Android Studio/jbr`, non al JDK di sistema, altrimenti Gradle rompe su `DefaultTestTaskReports`). `assembleDebug` OK + smoke emulatore OK (nessun crash, bottom nav senza Overlay). Aperti: stringhe HUD overlay morte, `WHATS_NEW` ancora menziona Overlay, Room v6 via `fallbackToDestructiveMigration` (wipe mazzi), smoke puzzle **su mazzo reale con carte SEGOC** non ancora fatto (serve rete per popolare catalogo su emulatore pulito).
-- **SEGOC recipe library (curato, non generato)** — prossimo step: libreria di linee combo scritte a mano per starter/archetipo (non calcolate), match automatico sulla mano aperta, SEGOC/Puzzle sopra come arbitro. Vedi sessione https://claude.ai/code/session_01HgL2QSmmu114TAjWy5wfFu per il design ragionato (auto-solve scartato: spazio di ricerca intrattabile con effetti opzionali/target/informazione nascosta).
+- **SEGOC recipe library (curato, non generato)** — motore arbitro/puzzle + libreria ricette implementati
+  (`refactor/segoc-tmm-field`, merge con main 2026-08-22). Seed con **una sola ricetta placeholder** (id
+  carta finti) — contenuto combo reale per archetipo non ancora scritto/verificato, prossimo step: sostituire
+  con linee vere (curate o da guida) e poi valutare community upload.
+- **Trade tra amici** — esplicitamente rimandato dall'utente finché social/community non è potenziato
+  (vedi voce sbloccante sopra); poi anche un flusso "fake" con CPU per testarlo lato UI senza un secondo account.
+- **Camera scan v2** — v1 (sotto, Done) fa OCR solo sul primo text block per fuzzy-match nome; da valutare
+  vero image-matching (art/foil) per i casi in cui l'OCR non arriva a un match affidabile.
+- **Budget helper v2** — oggi 1 sostituzione per carta costosa via synergy graph (`GetRelatedCards`) filtrata
+  per prezzo più basso; non tiene conto di ruolo funzionale (starter vs extender) né di combo breakage.
+- **BLOCCANTE social — abilitare "Anonymous sign-ins"** nel dashboard Supabase del progetto `ygochecker`
+  (`ubflewrwtpbrbkjdohfx`) → Authentication → Providers, e confermare il redirect URL
+  `ygochecker://oauth/magiclink` in Authentication → URL Configuration. Verificato via MCP Supabase
+  (2026-08-22): RLS/schema/constraint su `public_decks`/`deck_messages` sono corretti (insert testato
+  impersonando l'utente reale via JWT claim, riuscito), ma **zero righe sono mai state scritte** in
+  `public_decks`/`deck_messages` e **zero identity `anonymous`** esistono in `auth.identities` — nessun
+  publish è mai arrivato in fondo. Nessun tool MCP espone il toggle provider, va fatto a mano da dashboard.
 - **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
 - **Nuove feature DB-powered** — lista spesa mazzo↔collezione, meta snapshot mazzi pubblici, alert banlist
   schedulati (schema `user_alerts`/`banlist_snapshots` già pronto lato Supabase, non ancora popolato)
@@ -13,7 +28,63 @@
 
 ## Done
 
-- 2026-08-22: **Verifier (SEGOC Field)** — PASS claimed Android work. Overlay module gone (`settings.gradle.kts` / app deps / no OverlayRoute / no SYSTEM_ALERT_WINDOW). Gradle `:core:model:testDebugUnitTest` 44/44 + `:core:domain:testDebugUnitTest` 18/18 (JAVA_HOME jdk-17.0.16.8-hotspot). SegocLessonBuilderTest/PuzzleInstantiatorTest match impl. npm ChromeHeadless 53/53 + build OK. harness validate FAIL (AGENTS.md sections, pre-existing). Emulator/assembleDebug not reproduced.
+- 2026-08-22: **SEGOC Field + Puzzle + recipe library** (branch `refactor/segoc-tmm-field`, merge con main) —
+  overlay module rimosso (`settings.gradle.kts`/app deps/nessun OverlayRoute/no SYSTEM_ALERT_WINDOW);
+  `TimingRuleEngine` tenuto. SegocLesson (arbitro ordine SEGOC/APNAP/LIFO sui trigger event reali del mazzo,
+  non calcolo linee), PuzzleModels (esito booleano, non solver), FieldView (board stile MDPro3),
+  ComboRecipe/matchRecipes (libreria linee curate, seed solo placeholder — vedi Open), toggle
+  "Usa come avversario puzzle" nel menu editor (mancava, il picker in Flow era sempre vuoto). Verificato:
+  JUnit `core:model`/`core:domain`/`data:cards` PASS (serve `JAVA_HOME` = `Android Studio/jbr`, il JDK di
+  sistema rompe Gradle su `DefaultTestTaskReports`), `assembleDebug` OK, smoke emulatore OK.
+- 2026-08-22: **Prezzo carte, valore mazzo, budget helper, Compagno da torneo, Scan v1** (branch
+  `claude/app-innovation-ideas-t2s7fv`) — quattro feature nuove in un giro, **nessuna compilazione
+  verificata in questo sandbox** (stesso limite di rete noto: `dl.google.com`/AGP bloccato dal proxy),
+  quindi review del codice/PR prima di mergiare:
+  - **Prezzo (Cardmarket via YGOPRODeck)**: `Card.priceEur`/`CardEntity.priceEur` (nullable, `CardDatabase`
+    v5→6, cache re-scaricabile → wipe sicuro); `YgoProDeckApi.parseCardInfo` ora legge
+    `card_prices[0].cardmarket_price`. Si popola per le carte che passano da ricerca/YDKE/**Scarica tutto**
+    (Impostazioni) — quest'ultimo fa `insertAll` REPLACE su tutto il catalogo, quindi è il modo per
+    retro-popolare i prezzi sui mazzi già esistenti; il pacchetto offline bundlato (`cards-hat.json.gz`)
+    resta senza prezzo finché non gira un sync online. Prezzo mostrato in dettaglio carta, riga ricerca,
+    badge "valore mazzo" (somma qty×prezzo, suffisso `+` se alcune carte non hanno ancora prezzo) nell'header
+    Decklist.
+  - **Budget helper**: nuovo use case `SuggestBudgetSwaps` (core:domain) — per le carte Main/Side più costose
+    (>= 1€) cerca alternative via `GetRelatedCards` (synergy graph esistente) più economiche, non già in
+    mazzo; menu Decklist → "Ottimizza budget" apre bottom sheet con swap 1-click.
+  - **Compagno da torneo**: nuovo database Room **separato** `tournament.db` (`TournamentDatabase`, entità
+    `DeckNotesEntity`/`TournamentMatchEntity`) — deliberatamente NON aggiunto a `DeckDatabase` esistente,
+    che ha `fallbackToDestructiveMigration()` e contiene dati utente reali (mazzi/amici/collezioni): bumpare
+    la sua versione avrebbe cancellato tutto agli utenti già installati. Menu Decklist → "Compagno da
+    torneo" apre dialog full-screen con note forza/debolezza/strategia per mazzo, log incontri (round,
+    avversario, risultato, W/L/D per game, side-deck tracker strutturato con chip picker Main→Side/Side→Main
+    sulle carte reali del mazzo), e Duel Helper (life counter P1/P2 + chess clock, non persistito).
+  - **Scan v1**: nuovo modulo Gradle `feature:scan` (CameraX, non presente prima — ML Kit text-recognition
+    invece era già usato per l'overlay MDPro via screen-capture, riusato lo stesso client). OCR sul primo
+    text block, fuzzy-match (Levenshtein) contro il catalogo offline via `CardRepository.search`, overlay
+    live con nome/tipo/prezzo carta + tasto "Aggiungi a collezione". Raggiungibile da una nuova shortcut in
+    Home ("Scansiona una carta"); nuova sezione `"scan"` nello state machine di `MainActivity` (stesso
+    meccanismo di Overlay), niente drawer nuovo (quello esistente era già dead code/import inutilizzato).
+    Permesso CAMERA dichiarato nel manifest del modulo (pattern già usato da `feature:overlay` per i suoi
+    permessi). v1 limitato: matching sul solo nome (no vero image-matching), un solo text block (il più in
+    alto, tipicamente dove sta il nome carta).
+  - Punti di roadmap discussi ma NON implementati in questo giro (vedi **Open**): trade tra amici (dopo
+    fix social), evoluzione SEGOC verso "arbitro + combo recipe" invece di solver, v2 di scan/budget helper.
+
+- 2026-08-22: **Fix thread mazzo pubblico irraggiungibile** (branch `claude/app-innovation-ideas-t2s7fv`) —
+  root cause diagnosticata via MCP Supabase: `DecklistScreen.setVisibility` scartava l'`AppResult` di
+  `social.publishDeck`/`unpublishDeck`, quindi un publish fallito (es. sessione scaduta → fallback
+  `signInAnonymously()` → provider anonimo disabilitato lato dashboard) lasciava comunque il flag locale
+  `isPublic=true`, mostrando il mazzo come pubblico in Profile senza che la riga esistesse mai su
+  `public_decks`. `ProfileScreen.openMyPublicDeck` poi apriva comunque il thread con un id "provvisorio"
+  mai scritto (commento errato "getPublicDeck resolves it" — non lo fa, fa un lookup esatto per id), quindi
+  `getPublicDeck` tornava sempre `social.deck_not_found`. Fix: `setVisibility` ora rollback il flag locale e
+  mostra l'errore (snackbar `err:` esistente) se il publish/unpublish remoto fallisce; `openMyPublicDeck` non
+  invoca più `onOpened` se il publish fallisce, mostra solo il notice. Aggiunto pulsante "Riprova" sul notice
+  di `ProfileRoute` per re-invocare `bootstrap()` senza dover riavviare l'app. Resta bloccato dal toggle
+  Supabase in cima a **Open** — senza quello nessun publish potrà comunque riuscire. **Build/test Kotlin non
+  eseguibile in questo sandbox** (stesso limite di rete già noto: `dl.google.com`/AGP bloccato dal proxy),
+  quindi nessuna compilazione verificata — solo lettura/coerenza di tipi contro il resto del file.
+
 - 2026-08-21: **SEGOC Flow Coach** (branch `refactor/segoc-flow-coach`, spec `docs/superpowers/specs/2026-08-21-segoc-flow-coach-design.md`,
   plan `docs/superpowers/plans/2026-08-21-segoc-flow-coach.md`) — Flow tab passa da catalogo HAT curato a coach sul
   mazzo attivo. Nuova pipeline `segoc-parser.ts` (ygo-card-checker/tools/card-knowledge-db) estrae per l'intero

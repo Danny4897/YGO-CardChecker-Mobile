@@ -156,7 +156,10 @@ fun CardDetailContent(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(card.name, style = MaterialTheme.typography.titleLarge, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 Text(card.type, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                StatusChip(legalityLabel, tone)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    StatusChip(legalityLabel, tone)
+                    card.priceEur?.let { StatusChip(formatPriceEur(it), StatusTone.Info) }
+                }
                 if (state.formatLabel.isNotBlank()) {
                     Text(
                         stringResource(R.string.editor_format_banner, state.formatLabel),

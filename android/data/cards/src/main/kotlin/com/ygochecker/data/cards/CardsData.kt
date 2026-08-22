@@ -39,6 +39,7 @@ data class CardEntity(
     val level: Int?,
     val description: String,
     val year: Int? = null,
+    val priceEur: Double? = null,
 )
 
 @Entity(tableName = "format_limits", primaryKeys = ["cardId", "format"])
@@ -321,7 +322,7 @@ interface CardDao {
         SyncMetaEntity::class,
         SegocProfileEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class CardDatabase : RoomDatabase() {
@@ -364,9 +365,9 @@ class RoomCardRepository @Inject constructor(
                     remote = api.searchByFname(trimmed, "en", limit = 50)
                 }
                 if (remote.isNotEmpty()) {
-                    val existingIds = dao.getByIds(remote.map(Card::id)).map(CardEntity::id).toSet()
-                    val toInsert = remote.filter { it.id !in existingIds }
-                    if (toInsert.isNotEmpty()) dao.insertAll(toInsert.map(Card::toEntity))
+                    // REPLACE (not insert-only): refreshes price/data for cards already cataloged
+                    // (e.g. via the bundled offline pack), not just brand-new ones.
+                    dao.insertAll(remote.map(Card::toEntity))
                     emit(runFilteredOrPlain(format, filters, trimmed, limit))
                 }
             } catch (_: IOException) {
@@ -420,6 +421,9 @@ class RoomCardRepository @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     override suspend fun get(id: Int) = dao.get(id)?.toModel()
+
+    override suspend fun getByIds(ids: Collection<Int>): List<Card> =
+        ids.distinct().chunked(400).flatMap { dao.getByIds(it) }.map(CardEntity::toModel)
 
     override suspend fun all() = dao.all().map(CardEntity::toModel)
 
@@ -495,10 +499,10 @@ class RoomCardRepository @Inject constructor(
 }
 
 internal fun CardEntity.toModel() =
-    Card(id, name, type, race, attribute, attack, defense, level, description, year)
+    Card(id, name, type, race, attribute, attack, defense, level, description, year, priceEur = priceEur)
 
 internal fun Card.toEntity() =
-    CardEntity(id, name, type, race, attribute, attack, defense, level, description, year)
+    CardEntity(id, name, type, race, attribute, attack, defense, level, description, year, priceEur)
 
 internal fun SegocProfileEntity.toSummary() = com.ygochecker.core.model.SegocProfileSummary(
     cardId = cardId,

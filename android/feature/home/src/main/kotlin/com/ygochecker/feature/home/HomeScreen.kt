@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Style
@@ -80,7 +81,7 @@ class HomeViewModel @Inject constructor(
 
 /**
  * Landing dashboard: unread alerts, the most recently edited deck's legality at a glance,
- * and shortcuts into Decks/Flow/Search. First of 5 primary tabs — Settings/Overlay are
+ * and shortcuts into Decks/Flow/Search/Scan. First of 5 primary tabs — Settings/Overlay are
  * reached from the gear icon in the top bar instead (see LocalOpenSettings).
  */
 @Composable
@@ -88,6 +89,7 @@ fun HomeRoute(
     onOpenSearch: () -> Unit,
     onOpenDecks: () -> Unit,
     onOpenFlow: () -> Unit,
+    onOpenScan: () -> Unit,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val decks by vm.decks.collectAsStateWithLifecycle()
@@ -135,6 +137,12 @@ fun HomeRoute(
                 title = stringResource(DesignR.string.home_search_title),
                 subtitle = stringResource(DesignR.string.home_search_subtitle),
                 onClick = onOpenSearch,
+            )
+            ShortcutRow(
+                icon = Icons.Default.CameraAlt,
+                title = stringResource(DesignR.string.home_scan_title),
+                subtitle = stringResource(DesignR.string.home_scan_subtitle),
+                onClick = onOpenScan,
             )
         }
     }

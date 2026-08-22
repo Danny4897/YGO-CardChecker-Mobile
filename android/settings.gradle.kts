@@ -8,4 +8,4 @@ dependencyResolutionManagement {
 rootProject.name = "YGOCheckerAndroid"
 include(":app", ":core:model", ":core:domain", ":core:common", ":core:designsystem")
 include(":data:cards", ":data:deck", ":data:social")
-include(":feature:search", ":feature:decklist", ":feature:settings", ":feature:flow", ":feature:profile", ":feature:home")
+include(":feature:search", ":feature:decklist", ":feature:settings", ":feature:flow", ":feature:profile", ":feature:home", ":feature:scan")

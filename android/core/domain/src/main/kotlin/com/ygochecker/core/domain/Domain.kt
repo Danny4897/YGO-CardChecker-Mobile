@@ -19,6 +19,8 @@ interface CardRepository {
     fun browsePlayable(format: GameFormat, limit: Int = 40): Flow<List<Card>>
     fun randomPlayable(format: GameFormat): Flow<Card?>
     suspend fun get(id: Int): Card?
+    /** Local-only batch lookup (no network) — for enriching stored id/name refs (e.g. deck cards). */
+    suspend fun getByIds(ids: Collection<Int>): List<Card>
     suspend fun all(): List<Card>
     suspend fun count(): Int
     suspend fun ensureCatalogReady()
@@ -48,6 +50,15 @@ interface DeckRepository {
     fun exportYdke(cards: List<DeckCard>): String
     suspend fun importYdk(text: String): AppResult<List<DeckCard>>
     fun exportYdk(cards: List<DeckCard>): String
+}
+
+/** Per-deck tournament prep: scouting notes + a match/round log with side-deck tracking. */
+interface TournamentRepository {
+    fun observeNotes(deckId: Long): Flow<DeckNotes?>
+    suspend fun saveNotes(notes: DeckNotes)
+    fun observeMatches(deckId: Long): Flow<List<TournamentMatch>>
+    suspend fun addMatch(match: TournamentMatch): Long
+    suspend fun deleteMatch(id: Long)
 }
 
 interface ProfileRepository {
@@ -407,6 +418,44 @@ class DefaultGetRelatedCards @Inject constructor(
         // If legality pack is over-strict / incomplete, still show synergy graph.
         val chosen = if (playable.isNotEmpty()) playable else pool
         return chosen.distinctBy { it.id }.take(want)
+    }
+}
+
+data class BudgetSwapSuggestion(
+    val expensive: DeckCard,
+    val alternative: Card,
+    val savingsEur: Double,
+)
+
+/** Cheaper synergy-linked alternatives for the deck's priciest Main/Side cards. */
+fun interface SuggestBudgetSwaps {
+    suspend fun invoke(cards: List<DeckCard>, format: GameFormat, maxSuggestions: Int): List<BudgetSwapSuggestion>
+}
+class DefaultSuggestBudgetSwaps @Inject constructor(
+    private val cardRepo: CardRepository,
+    private val related: GetRelatedCards,
+) : SuggestBudgetSwaps {
+    override suspend fun invoke(cards: List<DeckCard>, format: GameFormat, maxSuggestions: Int): List<BudgetSwapSuggestion> {
+        val inDeckIds = cards.map { it.card.id }.toSet()
+        val expensive = cards
+            .filter { it.section != DeckSection.EXTRA && (it.card.priceEur ?: 0.0) >= MIN_PRICE_EUR }
+            .sortedByDescending { (it.card.priceEur ?: 0.0) * it.quantity }
+        val results = mutableListOf<BudgetSwapSuggestion>()
+        for (dc in expensive) {
+            if (results.size >= maxSuggestions) break
+            val price = dc.card.priceEur ?: continue
+            val best = related.invoke(dc.card.id, format, RELATED_POOL)
+                .filterNot { it.id in inDeckIds }
+                .mapNotNull { ref -> cardRepo.get(ref.id) }
+                .filter { (it.priceEur ?: Double.MAX_VALUE) < price }
+                .minByOrNull { it.priceEur!! }
+            if (best != null) results += BudgetSwapSuggestion(dc, best, price - best.priceEur!!)
+        }
+        return results
+    }
+    private companion object {
+        const val MIN_PRICE_EUR = 1.0
+        const val RELATED_POOL = 12
     }
 }
 
