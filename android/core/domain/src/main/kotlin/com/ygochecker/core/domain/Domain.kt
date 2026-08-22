@@ -144,6 +144,26 @@ interface OfflinePackRepository {
     suspend fun relatedCards(cardId: Int, limit: Int = 24): List<RelatedCardRef>
 }
 
+/** Hand-authored combo lines, bundled with the app — never generated. See [ComboRecipe]. */
+interface ComboRecipeRepository {
+    suspend fun all(): List<ComboRecipe>
+}
+
+/** Recipes whose full starter combo is covered by [deckId]'s card pool. */
+fun interface GetComboRecipesForDeck {
+    suspend fun invoke(deckId: Long, format: GameFormat): List<ComboRecipe>
+}
+class DefaultGetComboRecipesForDeck @Inject constructor(
+    private val decks: DeckRepository,
+    private val recipes: ComboRecipeRepository,
+) : GetComboRecipesForDeck {
+    override suspend fun invoke(deckId: Long, format: GameFormat): List<ComboRecipe> {
+        val deck = decks.observeDeck(deckId).first() ?: return emptyList()
+        val cardIds = deck.cards.map { it.card.id }
+        return matchRecipes(cardIds, recipes.all(), format)
+    }
+}
+
 fun interface SearchCards {
     fun invoke(query: String, format: GameFormat, filters: SearchFilters): Flow<List<Card>>
 }

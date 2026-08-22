@@ -69,6 +69,8 @@
     <string name="flow_segoc_generic_note">Conviene di solito risolvere per ultimo l\'effetto che ti dà più informazione o scelta, per decidere con più dati.</string>
     <string name="flow_open_catalog">Sfoglia i flow HAT curati</string>
     <string name="flow_lesson_section">Lezioni SEGOC</string>
+    <string name="recipe_section">Linee combo</string>
+    <string name="recipe_source">Fonte: %1$s</string>
     <string name="flow_lesson_empty">Nessun trigger simultaneo in questo mazzo. Aggiungi un avversario o altre carte trigger.</string>
     <string name="flow_lesson_event">Sta per accadere un evento a cui queste carte rispondono.</string>
     <string name="flow_lesson_your_triggers">Queste carte nel TUO mazzo possono andare in chain.</string>
@@ -442,6 +444,8 @@
     <string name="profile_collection_expand">Mostra carte</string>
     <string name="decks_public">Mazzo pubblico</string>
     <string name="decks_private">Mazzo privato</string>
+    <string name="editor_puzzle_opponent_set">Usa come avversario puzzle</string>
+    <string name="editor_puzzle_opponent_remove">Rimuovi da avversario puzzle</string>
     <string name="decks_visibility">Visibilità</string>
     <string name="search_save_to_collection">Salva in collezione</string>
     <string name="search_pick_collection">Scegli una collezione</string>

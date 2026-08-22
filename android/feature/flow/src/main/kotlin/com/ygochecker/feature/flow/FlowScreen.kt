@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountTree
@@ -28,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -47,6 +50,7 @@ import com.ygochecker.core.designsystem.ThemedScreenHeader
 import com.ygochecker.core.domain.DeckFlowLinkRepository
 import com.ygochecker.core.domain.FindSimultaneousTriggers
 import com.ygochecker.core.domain.FormatPreference
+import com.ygochecker.core.domain.GetComboRecipesForDeck
 import com.ygochecker.core.domain.GetFlow
 import com.ygochecker.core.domain.GetSegocProfiles
 import com.ygochecker.core.domain.ListDecklists
@@ -57,6 +61,7 @@ import com.ygochecker.core.model.FlowEdge
 import com.ygochecker.core.model.FlowGraph
 import com.ygochecker.core.model.FlowKind
 import com.ygochecker.core.model.FlowRehearsalEngine
+import com.ygochecker.core.model.ComboRecipe
 import com.ygochecker.core.model.FlowSummary
 import com.ygochecker.core.model.GameFormat
 import com.ygochecker.core.model.SegocLesson
@@ -85,6 +90,7 @@ class FlowViewModel @Inject constructor(
     private val findSimultaneousTriggers: FindSimultaneousTriggers,
     private val mdproAssets: MdproAssetSettings,
     private val setPuzzleOpponent: SetDeckPuzzleOpponent,
+    private val getComboRecipes: GetComboRecipesForDeck,
 ) : ViewModel() {
     val format = formatPreference.values.stateIn(
         viewModelScope,
@@ -120,6 +126,10 @@ class FlowViewModel @Inject constructor(
     var simultaneousPairs by mutableStateOf<List<SimultaneousTriggerPair>>(emptyList())
         private set
     var lessons by mutableStateOf<List<SegocLesson>>(emptyList())
+        private set
+    var recipes by mutableStateOf<List<ComboRecipe>>(emptyList())
+        private set
+    var openRecipe by mutableStateOf<ComboRecipe?>(null)
         private set
     var puzzles by mutableStateOf<List<PuzzleInstance>>(emptyList())
         private set
@@ -158,6 +168,7 @@ class FlowViewModel @Inject constructor(
             simultaneousPairs = emptyList()
             lessons = emptyList()
             puzzles = emptyList()
+            recipes = emptyList()
             return
         }
         viewModelScope.launch {
@@ -173,6 +184,7 @@ class FlowViewModel @Inject constructor(
             val merged = segocByCardId + oppProfiles
             lessons = buildSegocLessons(cardIds, oppIds, merged)
             puzzles = instantiatePuzzles(cardIds, oppIds, merged)
+            recipes = getComboRecipes.invoke(deckId, format.value)
             coachLoading = false
         }
     }
@@ -194,6 +206,9 @@ class FlowViewModel @Inject constructor(
         fieldLesson = lesson
         activePuzzle = null
     }
+
+    fun showRecipe(recipe: ComboRecipe) { openRecipe = recipe }
+    fun closeRecipe() { openRecipe = null }
 
     fun startPuzzle(puzzle: PuzzleInstance) {
         activePuzzle = puzzle
@@ -350,14 +365,20 @@ fun FlowRoute(vm: FlowViewModel = hiltViewModel()) {
                 segocByCardId = vm.segocByCardId,
                 lessons = vm.lessons,
                 puzzles = vm.puzzles,
+                recipes = vm.recipes,
                 opponentDeckId = vm.opponentDeckId,
                 onSelectOpponent = vm::selectOpponent,
                 onMarkOpponent = vm::markOpponent,
                 onOpenLesson = vm::openLessonField,
                 onStartPuzzle = vm::startPuzzle,
+                onOpenRecipe = vm::showRecipe,
                 onOpenCatalog = vm::toggleCatalog,
             )
         }
+    }
+    vm.openRecipe?.let { recipe ->
+        val activeDeck = decks.firstOrNull { it.id == vm.activeDeckId }
+        RecipeDetailDialog(recipe = recipe, deck = activeDeck, onDismiss = vm::closeRecipe)
     }
     val fieldLesson = vm.fieldLesson
     if (fieldLesson != null) {
@@ -436,11 +457,13 @@ private fun FlowCoachScreen(
     segocByCardId: Map<Int, SegocProfileSummary>,
     lessons: List<SegocLesson>,
     puzzles: List<PuzzleInstance>,
+    recipes: List<ComboRecipe>,
     opponentDeckId: Long?,
     onSelectOpponent: (Long?) -> Unit,
     onMarkOpponent: (Long, Boolean) -> Unit,
     onOpenLesson: (SegocLesson) -> Unit,
     onStartPuzzle: (PuzzleInstance) -> Unit,
+    onOpenRecipe: (ComboRecipe) -> Unit,
     onOpenCatalog: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -493,6 +516,18 @@ private fun FlowCoachScreen(
                         OutlinedButton(onClick = { onMarkOpponent(deck.id, true) }) {
                             Text(stringResource(DesignR.string.puzzle_mark_opponent))
                         }
+                    }
+                }
+                if (recipes.isNotEmpty()) {
+                    item(key = "recipe-header") {
+                        Text(
+                            text = stringResource(DesignR.string.recipe_section),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    items(recipes, key = { it.id }) { recipe ->
+                        RecipeCard(recipe, onOpenRecipe)
                     }
                 }
                 if (lessons.isEmpty()) {
@@ -577,6 +612,78 @@ private fun LessonCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecipeCard(recipe: ComboRecipe, onOpen: (ComboRecipe) -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onOpen(recipe) },
+    ) {
+        Column(Modifier.padding(DuelSpacing.space4), verticalArrangement = Arrangement.spacedBy(DuelSpacing.space1)) {
+            Text(recipe.title, style = MaterialTheme.typography.titleSmall)
+            Text(
+                recipe.archetype,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecipeDetailDialog(
+    recipe: ComboRecipe,
+    deck: com.ygochecker.core.model.Decklist?,
+    onDismiss: () -> Unit,
+) {
+    fun name(id: Int) = deck?.cards?.firstOrNull { it.card.id == id }?.card?.name ?: id.toString()
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+            Column(
+                Modifier
+                    .padding(DuelSpacing.space4)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(DuelSpacing.space2),
+            ) {
+                Text(recipe.title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    recipe.archetype,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                recipe.steps.sortedBy { it.order }.forEach { step ->
+                    Column(Modifier.padding(top = DuelSpacing.space2)) {
+                        Text(
+                            "${step.order + 1}. ${name(step.cardId)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(step.action, style = MaterialTheme.typography.bodySmall)
+                        if (step.note.isNotBlank()) {
+                            Text(
+                                step.note,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                if (recipe.source.isNotBlank()) {
+                    Text(
+                        stringResource(DesignR.string.recipe_source, recipe.source),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = DuelSpacing.space2),
+                    )
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text(stringResource(DesignR.string.action_close))
+                }
             }
         }
     }

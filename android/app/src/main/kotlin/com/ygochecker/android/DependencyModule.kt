@@ -29,6 +29,8 @@ abstract class DependencyModule {
     @Binds abstract fun socialRepository(value: SupabaseSocialRepository): SocialRepository
     @Binds abstract fun preferenceRepository(value: DataStorePreferenceRepository): PreferenceRepository
     @Binds abstract fun offlinePack(value: RoomOfflinePackRepository): OfflinePackRepository
+    @Binds abstract fun comboRecipeRepository(value: AssetComboRecipeRepository): ComboRecipeRepository
+    @Binds abstract fun getComboRecipesForDeck(value: DefaultGetComboRecipesForDeck): GetComboRecipesForDeck
     @Binds abstract fun searchCards(value: DefaultSearchCards): SearchCards
     @Binds abstract fun browsePlayable(value: DefaultBrowsePlayableCards): BrowsePlayableCards
     @Binds abstract fun randomPlayable(value: DefaultRandomPlayableCard): RandomPlayableCard

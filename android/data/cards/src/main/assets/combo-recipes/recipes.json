@@ -1,0 +1,14 @@
+[
+  {
+    "id": "placeholder-example-line",
+    "archetype": "Esempio",
+    "title": "PLACEHOLDER — sostituisci con una linea reale",
+    "starterCardIds": [1, 2],
+    "steps": [
+      {"order": 0, "cardId": 1, "action": "PLACEHOLDER: descrivi qui la prima mossa"},
+      {"order": 1, "cardId": 2, "action": "PLACEHOLDER: descrivi qui la mossa successiva", "note": "Sostituisci starterCardIds con i passcode veri delle carte."}
+    ],
+    "source": "PLACEHOLDER — non verificato, da sostituire con una guida reale",
+    "format": "TCG"
+  }
+]

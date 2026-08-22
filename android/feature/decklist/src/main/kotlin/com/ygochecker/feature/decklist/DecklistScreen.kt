@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
@@ -140,6 +141,7 @@ import com.ygochecker.core.domain.RenameDecklist
 import com.ygochecker.core.domain.SetCardQuantity
 import com.ygochecker.core.domain.SetDeckCovers
 import com.ygochecker.core.domain.SetDeckPublic
+import com.ygochecker.core.domain.SetDeckPuzzleOpponent
 import com.ygochecker.core.domain.SocialRepository
 import com.ygochecker.core.domain.SuggestCombosForCard
 import com.ygochecker.core.model.AppLanguage
@@ -183,6 +185,7 @@ data class DeckComboReportUi(
     private val setQuantity: SetCardQuantity,
     private val setCovers: SetDeckCovers,
     private val setPublic: SetDeckPublic,
+    private val setPuzzleOpponentUseCase: SetDeckPuzzleOpponent,
     private val social: SocialRepository,
     private val getScript: GetEffectScript,
     private val getLocalized: GetLocalizedCard,
@@ -246,6 +249,9 @@ data class DeckComboReportUi(
             if (isPublic) social.publishDeck(deck)
             else social.unpublishDeck(id)
         }
+    }
+    fun setPuzzleOpponent(id: Long, isPuzzleOpponent: Boolean) = viewModelScope.launch {
+        setPuzzleOpponentUseCase.invoke(id, isPuzzleOpponent)
     }
     fun clearCompleteNotice() { completeNotice = null }
     fun closeComboReport() { comboReport = null }
@@ -557,6 +563,7 @@ data class DeckComboReportUi(
             onToggleCover = vm::toggleCover,
             onRename = vm::rename,
             onSetPublic = { public -> selected?.let { vm.setVisibility(it.id, public) } },
+            onSetPuzzleOpponent = { flag -> selected?.let { vm.setPuzzleOpponent(it.id, flag) } },
             onCompleteDeck = vm::completeDeck,
             onGenerateFlows = vm::generateFlows,
             onAnalyzeCombos = vm::analyzeCombos,
@@ -828,6 +835,7 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
     onToggleCover: (Int) -> Unit,
     onRename: (String) -> Unit,
     onSetPublic: (Boolean) -> Unit,
+    onSetPuzzleOpponent: (Boolean) -> Unit,
     onCompleteDeck: (Int, Int, Int, Set<String>) -> Unit,
     onGenerateFlows: () -> Unit,
     onAnalyzeCombos: () -> Unit,
@@ -1086,6 +1094,22 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
                             onClick = {
                                 menuOpen = false
                                 onSetPublic(!deck.isPublic)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (deck.isPuzzleOpponent) {
+                                        stringResource(DesignR.string.editor_puzzle_opponent_remove)
+                                    } else {
+                                        stringResource(DesignR.string.editor_puzzle_opponent_set)
+                                    },
+                                )
+                            },
+                            leadingIcon = { Icon(Icons.Default.Extension, null) },
+                            onClick = {
+                                menuOpen = false
+                                onSetPuzzleOpponent(!deck.isPuzzleOpponent)
                             },
                         )
                         HorizontalDivider()

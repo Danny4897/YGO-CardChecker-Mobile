@@ -69,6 +69,8 @@
     <string name="flow_segoc_generic_note">Usually worth resolving the effect that gives you more information or choice last, so you decide with more data.</string>
     <string name="flow_open_catalog">Browse curated HAT flows</string>
     <string name="flow_lesson_section">SEGOC lessons</string>
+    <string name="recipe_section">Combo lines</string>
+    <string name="recipe_source">Source: %1$s</string>
     <string name="flow_lesson_empty">No simultaneous triggers in this deck. Add an opponent or more trigger cards.</string>
     <string name="flow_lesson_event">An event both cards care about is about to happen.</string>
     <string name="flow_lesson_your_triggers">These cards in YOUR deck can go on the chain.</string>
@@ -442,6 +444,8 @@
     <string name="profile_collection_expand">Show cards</string>
     <string name="decks_public">Public deck</string>
     <string name="decks_private">Private deck</string>
+    <string name="editor_puzzle_opponent_set">Use as puzzle opponent</string>
+    <string name="editor_puzzle_opponent_remove">Remove as puzzle opponent</string>
     <string name="decks_visibility">Visibility</string>
     <string name="search_save_to_collection">Save to collection</string>
     <string name="search_pick_collection">Choose a collection</string>
