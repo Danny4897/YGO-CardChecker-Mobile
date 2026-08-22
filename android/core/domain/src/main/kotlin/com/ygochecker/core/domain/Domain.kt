@@ -19,6 +19,8 @@ interface CardRepository {
     fun browsePlayable(format: GameFormat, limit: Int = 40): Flow<List<Card>>
     fun randomPlayable(format: GameFormat): Flow<Card?>
     suspend fun get(id: Int): Card?
+    /** Local-only batch lookup (no network) — for enriching stored id/name refs (e.g. deck cards). */
+    suspend fun getByIds(ids: Collection<Int>): List<Card>
     suspend fun all(): List<Card>
     suspend fun count(): Int
     suspend fun ensureCatalogReady()

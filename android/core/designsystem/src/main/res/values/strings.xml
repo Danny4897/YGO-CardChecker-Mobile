@@ -542,10 +542,14 @@
     <string name="tournament_save_match">Save match</string>
     <string name="tournament_duel_helper">Duel helper</string>
     <string name="tournament_player">Player %1$d</string>
+    <string name="tournament_you">You</string>
     <string name="tournament_pause">Pause</string>
     <string name="tournament_resume">Resume</string>
     <string name="tournament_reset">Reset</string>
     <string name="tournament_pass_turn">Pass turn</string>
+    <string name="tournament_you_lost">You lost — 0 LP</string>
+    <string name="tournament_you_won">You won — opponent at 0 LP</string>
+    <string name="tournament_register_result">Log result</string>
     <string name="editor_combo_report_actions">Suggested adds</string>
     <string name="editor_combo_report_empty">No curated combo lines match this deck yet. Add engine pieces (starters, Hands, Artifacts…).</string>
     <string name="editor_combo_report_lines">Matched lines</string>

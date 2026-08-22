@@ -110,14 +110,15 @@ class RoomDeckFlowLinkRepository @Inject constructor(
     private val dao: DeckDao,
     private val cards: CardRepository,
 ) : DeckRepository {
-    override fun observeDecks() = combine(dao.observeDecks(), dao.observeAllCards()) { decks, cards ->
-        val byDeck = cards.groupBy(DeckCardEntity::deckId)
+    override fun observeDecks() = combine(dao.observeDecks(), dao.observeAllCards()) { decks, entities ->
+        val byDeck = entities.groupBy(DeckCardEntity::deckId)
+        val catalog = cards.getByIds(entities.map(DeckCardEntity::cardId)).associateBy(Card::id)
         decks.map { deck ->
             Decklist(
                 id = deck.id,
                 name = deck.name,
                 updatedAt = deck.updatedAt,
-                cards = sortDeckCards(byDeck[deck.id].orEmpty().map(DeckCardEntity::toModel)),
+                cards = sortDeckCards(byDeck[deck.id].orEmpty().map { it.toModel(catalog) }),
                 coverCardIds = listOfNotNull(deck.coverCardId1, deck.coverCardId2),
                 isPublic = deck.isPublic,
             )
@@ -125,11 +126,12 @@ class RoomDeckFlowLinkRepository @Inject constructor(
     }
     override fun observeDeck(id: Long) = combine(dao.observeDeck(id), dao.observeCards(id)) { deck, items ->
         deck?.let {
+            val catalog = cards.getByIds(items.map(DeckCardEntity::cardId)).associateBy(Card::id)
             Decklist(
                 it.id,
                 it.name,
                 it.updatedAt,
-                sortDeckCards(items.map(DeckCardEntity::toModel)),
+                sortDeckCards(items.map { item -> item.toModel(catalog) }),
                 listOfNotNull(it.coverCardId1, it.coverCardId2),
                 it.isPublic,
             )
@@ -194,7 +196,8 @@ class RoomDeckFlowLinkRepository @Inject constructor(
 
     override fun exportYdk(cards: List<DeckCard>) = YdkCodec.export(cards)
 }
-private fun DeckCardEntity.toModel() = DeckCard(Card(cardId, name, type), quantity, DeckSection.valueOf(section))
+private fun DeckCardEntity.toModel(catalog: Map<Int, Card> = emptyMap()) =
+    DeckCard(catalog[cardId] ?: Card(cardId, name, type), quantity, DeckSection.valueOf(section))
 
 val Context.appPrefsStore by preferencesDataStore("settings")
 @Singleton class DataStorePreferenceRepository @Inject constructor(

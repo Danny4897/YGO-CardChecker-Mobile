@@ -542,10 +542,14 @@
     <string name="tournament_save_match">Salva incontro</string>
     <string name="tournament_duel_helper">Duel Helper</string>
     <string name="tournament_player">Giocatore %1$d</string>
+    <string name="tournament_you">Tu</string>
     <string name="tournament_pause">Pausa</string>
     <string name="tournament_resume">Riprendi</string>
     <string name="tournament_reset">Reset</string>
     <string name="tournament_pass_turn">Passa turno</string>
+    <string name="tournament_you_lost">Hai perso — 0 LP</string>
+    <string name="tournament_you_won">Hai vinto — avversario a 0 LP</string>
+    <string name="tournament_register_result">Registra risultato</string>
     <string name="editor_combo_report_actions">Aggiunte suggerite</string>
     <string name="editor_combo_report_empty">Nessuna linea combo curata combacia ancora con questo mazzo. Aggiungi pezzi engine (starter, Hand, Artifact…).</string>
     <string name="editor_combo_report_lines">Linee trovate</string>

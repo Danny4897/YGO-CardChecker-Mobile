@@ -121,6 +121,7 @@ fun TournamentCompanionDialog(deck: Decklist, onDismiss: () -> Unit) {
     var strategy by remember(notes) { mutableStateOf(notes?.strategy.orEmpty()) }
     var addMatchOpen by remember { mutableStateOf(false) }
     var duelHelperOpen by remember { mutableStateOf(false) }
+    var prefilledResult by remember { mutableStateOf<MatchResult?>(null) }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -211,15 +212,24 @@ fun TournamentCompanionDialog(deck: Decklist, onDismiss: () -> Unit) {
     if (addMatchOpen) {
         AddMatchSheet(
             deck = deck,
-            onDismiss = { addMatchOpen = false },
+            initialResult = prefilledResult,
+            onDismiss = { addMatchOpen = false; prefilledResult = null },
             onSave = { round, opponent, result, games, sideNotes, freeNotes ->
                 vm.addMatch(round, opponent, result, games, sideNotes, freeNotes)
                 addMatchOpen = false
+                prefilledResult = null
             },
         )
     }
     if (duelHelperOpen) {
-        DuelHelperDialog(onDismiss = { duelHelperOpen = false })
+        DuelHelperDialog(
+            onDismiss = { duelHelperOpen = false },
+            onRegisterResult = { result ->
+                duelHelperOpen = false
+                prefilledResult = result
+                addMatchOpen = true
+            },
+        )
     }
 }
 
@@ -288,11 +298,12 @@ private fun AddMatchSheet(
     deck: Decklist,
     onDismiss: () -> Unit,
     onSave: (String, String, MatchResult, List<MatchResult>, String, String) -> Unit,
+    initialResult: MatchResult? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var roundLabel by remember { mutableStateOf("") }
     var opponent by remember { mutableStateOf("") }
-    var result by remember { mutableStateOf(MatchResult.WIN) }
+    var result by remember { mutableStateOf(initialResult ?: MatchResult.WIN) }
     var games by remember { mutableStateOf(listOf<MatchResult?>(null, null, null)) }
     var freeNotes by remember { mutableStateOf("") }
     var swapOut by remember { mutableStateOf(setOf<Int>()) }
@@ -401,16 +412,21 @@ private fun AddMatchSheet(
 private fun Set<Int>.toggle(id: Int): Set<Int> = if (id in this) this - id else this + id
 
 @Composable
-private fun DuelHelperDialog(onDismiss: () -> Unit) {
+private fun DuelHelperDialog(onDismiss: () -> Unit, onRegisterResult: (MatchResult) -> Unit) {
     var lp1 by remember { mutableStateOf(8000) }
     var lp2 by remember { mutableStateOf(8000) }
     var activePlayer by remember { mutableStateOf(1) }
     var running by remember { mutableStateOf(false) }
     var elapsed1 by remember { mutableLongStateOf(0L) }
     var elapsed2 by remember { mutableLongStateOf(0L) }
+    val defeated = when {
+        lp1 <= 0 -> 1
+        lp2 <= 0 -> 2
+        else -> null
+    }
 
-    LaunchedEffect(running, activePlayer) {
-        if (!running) return@LaunchedEffect
+    LaunchedEffect(running, activePlayer, defeated) {
+        if (!running || defeated != null) return@LaunchedEffect
         var last = System.currentTimeMillis()
         while (isActive) {
             delay(200)
@@ -420,6 +436,7 @@ private fun DuelHelperDialog(onDismiss: () -> Unit) {
             if (activePlayer == 1) elapsed1 += dt else elapsed2 += dt
         }
     }
+    LaunchedEffect(defeated) { if (defeated != null) running = false }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -432,12 +449,39 @@ private fun DuelHelperDialog(onDismiss: () -> Unit) {
                     )
                     IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, null) }
                 }
+                if (defeated != null) {
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = if (defeated == 1) {
+                            MaterialTheme.colorScheme.errorContainer
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = DuelSpacing.space4),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(DuelSpacing.space3),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (defeated == 1) DesignR.string.tournament_you_lost else DesignR.string.tournament_you_won,
+                                ),
+                                modifier = Modifier.weight(1f),
+                            )
+                            Button(onClick = { onRegisterResult(if (defeated == 1) MatchResult.LOSS else MatchResult.WIN) }) {
+                                Text(stringResource(DesignR.string.tournament_register_result))
+                            }
+                        }
+                    }
+                }
                 Column(
                     Modifier.weight(1f).padding(horizontal = DuelSpacing.space4),
                     verticalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
                 ) {
                     PlayerClockPanel(
-                        label = stringResource(DesignR.string.tournament_player, 1),
+                        label = stringResource(DesignR.string.tournament_you),
                         lp = lp1,
                         onLpChange = { lp1 = (lp1 + it).coerceAtLeast(0) },
                         elapsedMs = elapsed1,
@@ -449,7 +493,7 @@ private fun DuelHelperDialog(onDismiss: () -> Unit) {
                         },
                     )
                     PlayerClockPanel(
-                        label = stringResource(DesignR.string.tournament_player, 2),
+                        label = stringResource(DesignR.string.tournament_opponent),
                         lp = lp2,
                         onLpChange = { lp2 = (lp2 + it).coerceAtLeast(0) },
                         elapsedMs = elapsed2,
@@ -465,7 +509,7 @@ private fun DuelHelperDialog(onDismiss: () -> Unit) {
                     Modifier.fillMaxWidth().padding(DuelSpacing.space4),
                     horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
                 ) {
-                    FilledTonalButton(onClick = { running = !running }, modifier = Modifier.weight(1f)) {
+                    FilledTonalButton(onClick = { running = !running }, enabled = defeated == null, modifier = Modifier.weight(1f)) {
                         Icon(if (running) Icons.Default.Pause else Icons.Default.PlayArrow, null)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(if (running) DesignR.string.tournament_pause else DesignR.string.tournament_resume))

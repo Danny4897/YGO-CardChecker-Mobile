@@ -365,9 +365,9 @@ class RoomCardRepository @Inject constructor(
                     remote = api.searchByFname(trimmed, "en", limit = 50)
                 }
                 if (remote.isNotEmpty()) {
-                    val existingIds = dao.getByIds(remote.map(Card::id)).map(CardEntity::id).toSet()
-                    val toInsert = remote.filter { it.id !in existingIds }
-                    if (toInsert.isNotEmpty()) dao.insertAll(toInsert.map(Card::toEntity))
+                    // REPLACE (not insert-only): refreshes price/data for cards already cataloged
+                    // (e.g. via the bundled offline pack), not just brand-new ones.
+                    dao.insertAll(remote.map(Card::toEntity))
                     emit(runFilteredOrPlain(format, filters, trimmed, limit))
                 }
             } catch (_: IOException) {
@@ -421,6 +421,9 @@ class RoomCardRepository @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     override suspend fun get(id: Int) = dao.get(id)?.toModel()
+
+    override suspend fun getByIds(ids: Collection<Int>): List<Card> =
+        ids.distinct().chunked(400).flatMap { dao.getByIds(it) }.map(CardEntity::toModel)
 
     override suspend fun all() = dao.all().map(CardEntity::toModel)
 
