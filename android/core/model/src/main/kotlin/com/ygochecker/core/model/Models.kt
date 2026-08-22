@@ -111,6 +111,10 @@ data class Decklist(
     val coverCardIds: List<Int> = emptyList(),
     /** Visible on profile when true; private decks stay device-only. */
     val isPublic: Boolean = false,
+    /** Imported reference deck (e.g. format library) — kept out of "my decks", grouped separately. */
+    val isExternal: Boolean = false,
+    /** Free-text bucket for external decks, e.g. "Test", "In attesa di modifiche". Ignored for own decks. */
+    val groupName: String? = null,
 )
 
 enum class LinkedAccountProvider { DISCORD, GOOGLE, KONAMI }
@@ -290,6 +294,8 @@ data class TournamentMatch(
     val deckId: Long,
     val roundLabel: String,
     val opponent: String,
+    /** Optional link to a saved deck (mine or external) the opponent played. */
+    val opponentDeckId: Long? = null,
     val result: MatchResult,
     /** Per-game results in play order, e.g. [WIN, LOSS, WIN]. */
     val games: List<MatchResult> = emptyList(),

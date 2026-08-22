@@ -33,6 +33,7 @@ data class TournamentMatchEntity(
     val deckId: Long,
     val roundLabel: String,
     val opponent: String,
+    val opponentDeckId: Long? = null,
     val result: String,
     /** Comma-separated [MatchResult] names in play order, e.g. "WIN,LOSS,WIN". */
     val gamesCsv: String,
@@ -70,7 +71,7 @@ interface TournamentDao {
  */
 @Database(
     entities = [DeckNotesEntity::class, TournamentMatchEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class TournamentDatabase : RoomDatabase() {
@@ -105,6 +106,7 @@ class RoomTournamentRepository @Inject constructor(
                 deckId = match.deckId,
                 roundLabel = match.roundLabel,
                 opponent = match.opponent,
+                opponentDeckId = match.opponentDeckId,
                 result = match.result.name,
                 gamesCsv = match.games.joinToString(",") { it.name },
                 sideNotes = match.sideNotes,
@@ -123,6 +125,7 @@ private fun TournamentMatchEntity.toModel() = TournamentMatch(
     deckId = deckId,
     roundLabel = roundLabel,
     opponent = opponent,
+    opponentDeckId = opponentDeckId,
     result = result.toMatchResult(),
     games = gamesCsv.split(',').filter(String::isNotBlank).map { it.toMatchResult() },
     sideNotes = sideNotes,

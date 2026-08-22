@@ -109,6 +109,8 @@ private object UnsupportedDeckRepository : DeckRepository {
     override suspend fun persistImported(
         name: String,
         cards: List<com.ygochecker.core.model.DeckCard>,
+        isExternal: Boolean,
+        groupName: String?,
     ) = error("unused")
     override suspend fun importText(text: String) = error("unused")
     override fun exportText(cards: List<com.ygochecker.core.model.DeckCard>) = error("unused")

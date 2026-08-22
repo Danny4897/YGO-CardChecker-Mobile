@@ -19,7 +19,7 @@ class PersistImportedDeckTest {
         )
         val repository = RecordingDeckRepository()
 
-        val result = DefaultPersistImportedDeck(repository).invoke("Imported deck", cards)
+        val result = DefaultPersistImportedDeck(repository).invoke("Imported deck", cards, false, null)
 
         assertEquals(42L, result.valueOrNull)
         assertEquals("Imported deck", repository.savedName)
@@ -46,7 +46,12 @@ private class RecordingDeckRepository : DeckRepository {
     override suspend fun importYdk(text: String): AppResult<List<DeckCard>> = error("not used")
     override fun exportYdk(cards: List<DeckCard>): String = error("not used")
 
-    override suspend fun persistImported(name: String, cards: List<DeckCard>): AppResult<Long> {
+    override suspend fun persistImported(
+        name: String,
+        cards: List<DeckCard>,
+        isExternal: Boolean,
+        groupName: String?,
+    ): AppResult<Long> {
         savedName = name
         savedCards = cards
         return AppResult.Ok(42L)

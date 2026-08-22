@@ -20,9 +20,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -66,12 +68,14 @@ fun DeckImportSheet(
     busy: Boolean,
     error: AppError?,
     close: () -> Unit,
-    import: (String, String, DeckIoFormat) -> Unit,
+    import: (String, String, DeckIoFormat, Boolean, String?) -> Unit,
 ) {
     var format by remember { mutableStateOf(DeckIoFormat.TEXT) }
     val defaultName = stringResource(DesignR.string.import_default_name)
     var name by remember(defaultName) { mutableStateOf(defaultName) }
     var content by remember { mutableStateOf("") }
+    var isExternal by remember { mutableStateOf(false) }
+    var groupName by remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = close, sheetState = sheetState) {
@@ -104,6 +108,29 @@ fun DeckImportSheet(
                     singleLine = true,
                     enabled = !busy,
                 )
+                FilterChip(
+                    selected = isExternal,
+                    onClick = { isExternal = !isExternal },
+                    label = { Text(stringResource(DesignR.string.import_external_toggle)) },
+                )
+                if (isExternal) {
+                    OutlinedTextField(
+                        value = groupName,
+                        onValueChange = { groupName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(DesignR.string.import_external_group)) },
+                        singleLine = true,
+                        enabled = !busy,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(
+                            stringResource(DesignR.string.import_external_group_test),
+                            stringResource(DesignR.string.import_external_group_pending),
+                        ).forEach { suggestion ->
+                            AssistChip(onClick = { groupName = suggestion }, label = { Text(suggestion) })
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = content,
                     onValueChange = { content = it },
@@ -152,7 +179,9 @@ fun DeckImportSheet(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Button(
-                    onClick = { import(name, content, format) },
+                    onClick = {
+                        import(name, content, format, isExternal, groupName.trim().ifBlank { null })
+                    },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     enabled = content.isNotBlank() && !busy,
                 ) {

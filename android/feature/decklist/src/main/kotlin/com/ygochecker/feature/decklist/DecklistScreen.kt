@@ -495,7 +495,13 @@ data class DeckComboReportUi(
         DeckIoFormat.YDKE -> exportYdke.invoke(selected.value?.cards.orEmpty())
         DeckIoFormat.YDK -> exportYdk.invoke(selected.value?.cards.orEmpty())
     }
-    fun import(name: String, content: String, format: DeckIoFormat) = viewModelScope.launch {
+    fun import(
+        name: String,
+        content: String,
+        format: DeckIoFormat,
+        isExternal: Boolean = false,
+        groupName: String? = null,
+    ) = viewModelScope.launch {
         _io.update { it.copy(busy = true, error = null) }
         val decoded = when (format) {
             DeckIoFormat.TEXT -> importText.invoke(content)
@@ -504,7 +510,7 @@ data class DeckComboReportUi(
         }
         val persisted = when (decoded) {
             is AppResult.Err -> decoded
-            is AppResult.Ok -> persistImported.invoke(name, decoded.value)
+            is AppResult.Ok -> persistImported.invoke(name, decoded.value, isExternal, groupName)
         }
         when (persisted) {
             is AppResult.Err -> _io.update { it.copy(busy = false, error = persisted.error) }
@@ -673,9 +679,15 @@ data class DeckComboReportUi(
     val newDeck = stringResource(DesignR.string.decks_new)
     var query by rememberSaveable { mutableStateOf("") }
     var sortNewestFirst by rememberSaveable { mutableStateOf(true) }
-    val visibleDecks = remember(decks, query, sortNewestFirst) {
-        val filtered = if (query.isBlank()) decks else decks.filter { it.name.contains(query, ignoreCase = true) }
+    val myDecks = remember(decks) { decks.filterNot(Decklist::isExternal) }
+    val externalDecks = remember(decks) { decks.filter(Decklist::isExternal) }
+    val visibleDecks = remember(myDecks, query, sortNewestFirst) {
+        val filtered = if (query.isBlank()) myDecks else myDecks.filter { it.name.contains(query, ignoreCase = true) }
         if (sortNewestFirst) filtered.sortedByDescending(Decklist::updatedAt) else filtered.sortedBy { it.name.lowercase() }
+    }
+    val externalGroups = remember(externalDecks) {
+        externalDecks.groupBy { it.groupName?.trim().takeUnless(String?::isNullOrBlank) }
+            .toSortedMap(compareBy { it ?: "￿" })
     }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -705,7 +717,7 @@ data class DeckComboReportUi(
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(DesignR.string.decks_import_action))
             }
-            if (decks.isEmpty()) {
+            if (myDecks.isEmpty() && externalGroups.isEmpty()) {
                 EmptyState(
                     icon = Icons.Outlined.Style,
                     title = stringResource(DesignR.string.decks_empty_title),
@@ -736,7 +748,7 @@ data class DeckComboReportUi(
                         )
                     }
                 }
-                if (visibleDecks.isEmpty()) {
+                if (visibleDecks.isEmpty() && externalGroups.isEmpty()) {
                     EmptyState(
                         icon = Icons.Default.Search,
                         title = stringResource(DesignR.string.decks_search_empty_title),
@@ -754,6 +766,27 @@ data class DeckComboReportUi(
                     ) {
                         items(visibleDecks, key = Decklist::id, contentType = { "deck" }) { deck ->
                             DeckListRow(deck) { select(deck.id) }
+                        }
+                        if (externalGroups.isNotEmpty()) {
+                            item(key = "external-header", contentType = "header") {
+                                Text(
+                                    stringResource(DesignR.string.decks_external_section),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(top = DuelSpacing.space3),
+                                )
+                            }
+                            externalGroups.forEach { (groupName, groupDecks) ->
+                                item(key = "group-${groupName ?: "none"}", contentType = "header") {
+                                    Text(
+                                        groupName ?: stringResource(DesignR.string.decks_ungrouped),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                items(groupDecks, key = { "ext-${it.id}" }, contentType = { "deck" }) { deck ->
+                                    DeckListRow(deck) { select(deck.id) }
+                                }
+                            }
                         }
                     }
                 }

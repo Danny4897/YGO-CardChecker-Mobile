@@ -59,6 +59,8 @@ private object UnsupportedTriggerPairDeckRepository : DeckRepository {
     override suspend fun persistImported(
         name: String,
         cards: List<DeckCard>,
+        isExternal: Boolean,
+        groupName: String?,
     ) = error("unused")
     override suspend fun importText(text: String) = error("unused")
     override fun exportText(cards: List<DeckCard>) = error("unused")

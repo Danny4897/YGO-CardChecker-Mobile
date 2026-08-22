@@ -118,7 +118,8 @@ class GenerateDeckFlowsTest {
         override suspend fun setCard(id: Long, card: Card, quantity: Int, section: DeckSection) = error("no")
         override suspend fun setCoverCards(id: Long, coverCardIds: List<Int>) = error("no")
         override suspend fun setPublic(id: Long, isPublic: Boolean) = error("no")
-        override suspend fun persistImported(name: String, cards: List<DeckCard>) = AppResult.Err(com.ygochecker.core.common.AppError("x"))
+        override suspend fun persistImported(name: String, cards: List<DeckCard>, isExternal: Boolean, groupName: String?) =
+            AppResult.Err(com.ygochecker.core.common.AppError("x"))
         override suspend fun importText(text: String) = AppResult.Err(com.ygochecker.core.common.AppError("x"))
         override fun exportText(cards: List<DeckCard>) = ""
         override suspend fun importYdke(uri: String) = AppResult.Err(com.ygochecker.core.common.AppError("x"))

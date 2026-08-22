@@ -299,6 +299,12 @@
     <string name="import_body">Paste a text list or YDKE link. A new deck is saved on this device.</string>
     <string name="import_default_name">Imported deck</string>
     <string name="import_deck_name">Deck name</string>
+    <string name="import_external_toggle">External deck (not mine)</string>
+    <string name="import_external_group">Group (e.g. Test)</string>
+    <string name="import_external_group_test">Test</string>
+    <string name="import_external_group_pending">Awaiting changes</string>
+    <string name="decks_external_section">External decks</string>
+    <string name="decks_ungrouped">Ungrouped</string>
     <string name="import_text_label">Deck list</string>
     <string name="import_ydke_label">YDKE link</string>
     <string name="import_text_placeholder">#main\n3 Dark Magician\n2 Dark Magician Girl\n#extra\n1 Dark Magician the Dragon Knight\n#side\n1 Magician Navigation</string>
@@ -550,6 +556,9 @@
     <string name="tournament_you_lost">You lost — 0 LP</string>
     <string name="tournament_you_won">You won — opponent at 0 LP</string>
     <string name="tournament_register_result">Log result</string>
+    <string name="tournament_switch_deck">Switch deck</string>
+    <string name="tournament_opponent_deck_pick">Link opponent deck (optional)</string>
+    <string name="tournament_no_decks_to_pick">No saved decks yet</string>
     <string name="editor_combo_report_actions">Suggested adds</string>
     <string name="editor_combo_report_empty">No curated combo lines match this deck yet. Add engine pieces (starters, Hands, Artifacts…).</string>
     <string name="editor_combo_report_lines">Matched lines</string>

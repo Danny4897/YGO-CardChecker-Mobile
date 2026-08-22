@@ -41,6 +41,8 @@ data class DeckEntity(
     val coverCardId1: Int? = null,
     val coverCardId2: Int? = null,
     val isPublic: Boolean = false,
+    val isExternal: Boolean = false,
+    val groupName: String? = null,
 )
 @Entity(tableName = "deck_cards", primaryKeys = ["deckId", "cardId", "section"])
 data class DeckCardEntity(
@@ -64,8 +66,14 @@ data class DeckCardEntity(
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putCard(card: DeckCardEntity)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putCards(cards: List<DeckCardEntity>)
 
-    @Transaction suspend fun importDeck(name: String, now: Long, cards: List<DeckCardEntity>): Long {
-        val deckId = insert(DeckEntity(name = name, updatedAt = now))
+    @Transaction suspend fun importDeck(
+        name: String,
+        now: Long,
+        cards: List<DeckCardEntity>,
+        isExternal: Boolean = false,
+        groupName: String? = null,
+    ): Long {
+        val deckId = insert(DeckEntity(name = name, updatedAt = now, isExternal = isExternal, groupName = groupName))
         putCards(cards.map { it.copy(deckId = deckId) })
         return deckId
     }
@@ -80,7 +88,7 @@ data class DeckCardEntity(
         FriendEntity::class,
         ReplayEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class DeckDatabase : RoomDatabase() {
@@ -121,6 +129,8 @@ class RoomDeckFlowLinkRepository @Inject constructor(
                 cards = sortDeckCards(byDeck[deck.id].orEmpty().map { it.toModel(catalog) }),
                 coverCardIds = listOfNotNull(deck.coverCardId1, deck.coverCardId2),
                 isPublic = deck.isPublic,
+                isExternal = deck.isExternal,
+                groupName = deck.groupName,
             )
         }
     }
@@ -128,12 +138,14 @@ class RoomDeckFlowLinkRepository @Inject constructor(
         deck?.let {
             val catalog = cards.getByIds(items.map(DeckCardEntity::cardId)).associateBy(Card::id)
             Decklist(
-                it.id,
-                it.name,
-                it.updatedAt,
-                sortDeckCards(items.map { item -> item.toModel(catalog) }),
-                listOfNotNull(it.coverCardId1, it.coverCardId2),
-                it.isPublic,
+                id = it.id,
+                name = it.name,
+                updatedAt = it.updatedAt,
+                cards = sortDeckCards(items.map { item -> item.toModel(catalog) }),
+                coverCardIds = listOfNotNull(it.coverCardId1, it.coverCardId2),
+                isPublic = it.isPublic,
+                isExternal = it.isExternal,
+                groupName = it.groupName,
             )
         }
     }
@@ -152,14 +164,19 @@ class RoomDeckFlowLinkRepository @Inject constructor(
     override suspend fun setPublic(id: Long, isPublic: Boolean) {
         dao.setPublic(id, isPublic, System.currentTimeMillis())
     }
-    override suspend fun persistImported(name: String, cards: List<DeckCard>): AppResult<Long> {
+    override suspend fun persistImported(
+        name: String,
+        cards: List<DeckCard>,
+        isExternal: Boolean,
+        groupName: String?,
+    ): AppResult<Long> {
         val normalized = normalizeImportedCards(cards)
         if (normalized is AppResult.Err) return normalized
         return try {
             val rows = (normalized as AppResult.Ok).value.map {
                 DeckCardEntity(0, it.card.id, it.card.name, it.card.type, it.quantity, it.section.name)
             }
-            AppResult.Ok(dao.importDeck(name, System.currentTimeMillis(), rows))
+            AppResult.Ok(dao.importDeck(name, System.currentTimeMillis(), rows, isExternal, groupName))
         } catch (_: Exception) {
             AppResult.Err(com.ygochecker.core.common.AppError("deck.storage_failed"))
         }

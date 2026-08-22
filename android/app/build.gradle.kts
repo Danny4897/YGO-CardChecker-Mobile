@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 23
-        versionName = "0.6.1"
+        versionCode = 24
+        versionName = "0.7.0"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Fix: prezzo/valore mazzo e Budget helper ora leggono i dati reali delle carte in editor\\n• Duel Helper: sconfitta/vittoria rilevata in automatico a 0 LP, con log risultato rapido",
+                "• Fix: prezzo/valore mazzo e Budget helper ora leggono i dati reali delle carte\\n• Duel Helper: sconfitta/vittoria automatica a 0 LP\\n• Compagno da torneo: scegli il tuo mazzo e collega quello dell'avversario\\n• Mazzi esterni (import) separati dai tuoi, raggruppabili (Test, In attesa...)",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.

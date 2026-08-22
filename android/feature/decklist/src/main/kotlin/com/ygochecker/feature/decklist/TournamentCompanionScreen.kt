@@ -1,5 +1,6 @@
 package com.ygochecker.feature.decklist
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -23,6 +25,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -33,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -59,6 +64,7 @@ import com.ygochecker.core.designsystem.DuelSpacing
 import com.ygochecker.core.designsystem.R as DesignR
 import com.ygochecker.core.designsystem.StatusChip
 import com.ygochecker.core.designsystem.StatusTone
+import com.ygochecker.core.domain.ListDecklists
 import com.ygochecker.core.domain.TournamentRepository
 import com.ygochecker.core.model.DeckNotes
 import com.ygochecker.core.model.DeckSection
@@ -79,8 +85,10 @@ import javax.inject.Inject
 @HiltViewModel
 class TournamentCompanionViewModel @Inject constructor(
     private val repo: TournamentRepository,
+    listDecks: ListDecklists,
 ) : ViewModel() {
     private val deckId = MutableStateFlow<Long?>(null)
+    val allDecks = listDecks.invoke().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val notes = deckId.flatMapLatest { id -> id?.let(repo::observeNotes) ?: flowOf(null) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val matches = deckId.flatMapLatest { id -> id?.let(repo::observeMatches) ?: flowOf(emptyList()) }
@@ -98,13 +106,25 @@ class TournamentCompanionViewModel @Inject constructor(
     fun addMatch(
         roundLabel: String,
         opponent: String,
+        opponentDeckId: Long?,
         result: MatchResult,
         games: List<MatchResult>,
         sideNotes: String,
         notes: String,
     ) = viewModelScope.launch {
         val id = deckId.value ?: return@launch
-        repo.addMatch(TournamentMatch(deckId = id, roundLabel = roundLabel, opponent = opponent, result = result, games = games, sideNotes = sideNotes, notes = notes))
+        repo.addMatch(
+            TournamentMatch(
+                deckId = id,
+                roundLabel = roundLabel,
+                opponent = opponent,
+                opponentDeckId = opponentDeckId,
+                result = result,
+                games = games,
+                sideNotes = sideNotes,
+                notes = notes,
+            ),
+        )
     }
 
     fun deleteMatch(id: Long) = viewModelScope.launch { repo.deleteMatch(id) }
@@ -113,7 +133,10 @@ class TournamentCompanionViewModel @Inject constructor(
 @Composable
 fun TournamentCompanionDialog(deck: Decklist, onDismiss: () -> Unit) {
     val vm: TournamentCompanionViewModel = hiltViewModel()
-    LaunchedEffect(deck.id) { vm.select(deck.id) }
+    val allDecks by vm.allDecks.collectAsStateWithLifecycle()
+    var currentDeckId by remember(deck.id) { mutableStateOf(deck.id) }
+    val currentDeck = allDecks.firstOrNull { it.id == currentDeckId } ?: deck
+    LaunchedEffect(currentDeckId) { vm.select(currentDeckId) }
     val notes by vm.notes.collectAsStateWithLifecycle()
     val matches by vm.matches.collectAsStateWithLifecycle()
     var strengths by remember(notes) { mutableStateOf(notes?.strengths.orEmpty()) }
@@ -121,6 +144,7 @@ fun TournamentCompanionDialog(deck: Decklist, onDismiss: () -> Unit) {
     var strategy by remember(notes) { mutableStateOf(notes?.strategy.orEmpty()) }
     var addMatchOpen by remember { mutableStateOf(false) }
     var duelHelperOpen by remember { mutableStateOf(false) }
+    var deckPickerOpen by remember { mutableStateOf(false) }
     var prefilledResult by remember { mutableStateOf<MatchResult?>(null) }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -134,12 +158,17 @@ fun TournamentCompanionDialog(deck: Decklist, onDismiss: () -> Unit) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
                     }
                     Text(
-                        stringResource(DesignR.string.tournament_title, deck.name),
+                        stringResource(DesignR.string.tournament_title, currentDeck.name),
                         style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { deckPickerOpen = true },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    IconButton(onClick = { deckPickerOpen = true }) {
+                        Icon(Icons.Default.SwapHoriz, stringResource(DesignR.string.tournament_switch_deck))
+                    }
                 }
                 Column(
                     Modifier
@@ -211,11 +240,12 @@ fun TournamentCompanionDialog(deck: Decklist, onDismiss: () -> Unit) {
 
     if (addMatchOpen) {
         AddMatchSheet(
-            deck = deck,
+            deck = currentDeck,
+            allDecks = allDecks,
             initialResult = prefilledResult,
             onDismiss = { addMatchOpen = false; prefilledResult = null },
-            onSave = { round, opponent, result, games, sideNotes, freeNotes ->
-                vm.addMatch(round, opponent, result, games, sideNotes, freeNotes)
+            onSave = { round, opponent, opponentDeckId, result, games, sideNotes, freeNotes ->
+                vm.addMatch(round, opponent, opponentDeckId, result, games, sideNotes, freeNotes)
                 addMatchOpen = false
                 prefilledResult = null
             },
@@ -229,6 +259,14 @@ fun TournamentCompanionDialog(deck: Decklist, onDismiss: () -> Unit) {
                 prefilledResult = result
                 addMatchOpen = true
             },
+        )
+    }
+    if (deckPickerOpen) {
+        DeckPickerSheet(
+            title = stringResource(DesignR.string.tournament_switch_deck),
+            decks = allDecks.filterNot(Decklist::isExternal),
+            onPick = { currentDeckId = it.id; deckPickerOpen = false },
+            onDismiss = { deckPickerOpen = false },
         )
     }
 }
@@ -296,13 +334,16 @@ private fun gameShortLabel(result: MatchResult) = when (result) {
 @Composable
 private fun AddMatchSheet(
     deck: Decklist,
+    allDecks: List<Decklist>,
     onDismiss: () -> Unit,
-    onSave: (String, String, MatchResult, List<MatchResult>, String, String) -> Unit,
+    onSave: (String, String, Long?, MatchResult, List<MatchResult>, String, String) -> Unit,
     initialResult: MatchResult? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var roundLabel by remember { mutableStateOf("") }
     var opponent by remember { mutableStateOf("") }
+    var opponentDeckId by remember { mutableStateOf<Long?>(null) }
+    var opponentDeckPickerOpen by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf(initialResult ?: MatchResult.WIN) }
     var games by remember { mutableStateOf(listOf<MatchResult?>(null, null, null)) }
     var freeNotes by remember { mutableStateOf("") }
@@ -310,6 +351,7 @@ private fun AddMatchSheet(
     var swapIn by remember { mutableStateOf(setOf<Int>()) }
     val mainCards = remember(deck) { deck.cards.filter { it.section == DeckSection.MAIN } }
     val sideCards = remember(deck) { deck.cards.filter { it.section == DeckSection.SIDE } }
+    val opponentDeck = allDecks.firstOrNull { it.id == opponentDeckId }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -336,6 +378,14 @@ private fun AddMatchSheet(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
+            OutlinedButton(onClick = { opponentDeckPickerOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Style, null)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    opponentDeck?.name
+                        ?: stringResource(DesignR.string.tournament_opponent_deck_pick),
+                )
+            }
             Text(stringResource(DesignR.string.tournament_result), style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 MatchResult.entries.forEach { r ->
@@ -398,12 +448,68 @@ private fun AddMatchSheet(
                         outNames.forEach { add("-$it") }
                         inNames.forEach { add("+$it") }
                     }.joinToString(", ")
-                    onSave(roundLabel, opponent, result, games.filterNotNull(), sideNotes, freeNotes)
+                    onSave(roundLabel, opponent, opponentDeckId, result, games.filterNotNull(), sideNotes, freeNotes)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = opponent.isNotBlank(),
             ) {
                 Text(stringResource(DesignR.string.tournament_save_match))
+            }
+        }
+    }
+    if (opponentDeckPickerOpen) {
+        DeckPickerSheet(
+            title = stringResource(DesignR.string.tournament_opponent_deck_pick),
+            decks = allDecks,
+            onPick = {
+                opponentDeckId = it.id
+                if (opponent.isBlank()) opponent = it.name
+                opponentDeckPickerOpen = false
+            },
+            onDismiss = { opponentDeckPickerOpen = false },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeckPickerSheet(title: String, decks: List<Decklist>, onPick: (Decklist) -> Unit, onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = DuelSpacing.space4).padding(bottom = DuelSpacing.space4),
+            verticalArrangement = Arrangement.spacedBy(DuelSpacing.space2),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleLarge)
+            if (decks.isEmpty()) {
+                Text(
+                    stringResource(DesignR.string.tournament_no_decks_to_pick),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Column(
+                    Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    decks.forEach { d ->
+                        Surface(
+                            onClick = { onPick(d) },
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(DuelSpacing.space3),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(d.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (d.isExternal) {
+                                    StatusChip(d.groupName ?: stringResource(DesignR.string.decks_external_section), StatusTone.Neutral)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

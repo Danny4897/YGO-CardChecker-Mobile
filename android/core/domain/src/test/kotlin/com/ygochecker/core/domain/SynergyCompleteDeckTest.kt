@@ -306,6 +306,7 @@ private class FakeCards(private val byId: Map<Int, Card>) : CardRepository {
     override fun browsePlayable(format: GameFormat, limit: Int): Flow<List<Card>> = flowOf(emptyList())
     override fun randomPlayable(format: GameFormat): Flow<Card?> = flowOf(null)
     override suspend fun get(id: Int) = byId[id]
+    override suspend fun getByIds(ids: Collection<Int>) = ids.mapNotNull { byId[it] }
     override suspend fun all() = byId.values.toList()
     override suspend fun count() = byId.size
     override suspend fun ensureCatalogReady() = Unit
@@ -332,7 +333,7 @@ private class MutableDeckRepository(initial: Decklist) : DeckRepository {
     }
     override suspend fun setCoverCards(id: Long, coverCardIds: List<Int>) = Unit
     override suspend fun setPublic(id: Long, isPublic: Boolean) = Unit
-    override suspend fun persistImported(name: String, cards: List<DeckCard>) = error("unused")
+    override suspend fun persistImported(name: String, cards: List<DeckCard>, isExternal: Boolean, groupName: String?) = error("unused")
     override suspend fun importText(text: String) = error("unused")
     override fun exportText(cards: List<DeckCard>) = error("unused")
     override suspend fun importYdke(uri: String) = error("unused")

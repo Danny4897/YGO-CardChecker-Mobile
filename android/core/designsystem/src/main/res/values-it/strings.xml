@@ -299,6 +299,12 @@
     <string name="import_body">Incolla una lista testo o un link YDKE. Il mazzo viene salvato su questo dispositivo.</string>
     <string name="import_default_name">Mazzo importato</string>
     <string name="import_deck_name">Nome mazzo</string>
+    <string name="import_external_toggle">Mazzo esterno (non mio)</string>
+    <string name="import_external_group">Gruppo (es. Test)</string>
+    <string name="import_external_group_test">Test</string>
+    <string name="import_external_group_pending">In attesa di modifiche</string>
+    <string name="decks_external_section">Mazzi esterni</string>
+    <string name="decks_ungrouped">Senza gruppo</string>
     <string name="import_text_label">Lista mazzo</string>
     <string name="import_ydke_label">Link YDKE</string>
     <string name="import_text_placeholder">#main\n3 Dark Magician\n2 Dark Magician Girl\n#extra\n1 Dark Magician the Dragon Knight\n#side\n1 Magician Navigation</string>
@@ -550,6 +556,9 @@
     <string name="tournament_you_lost">Hai perso — 0 LP</string>
     <string name="tournament_you_won">Hai vinto — avversario a 0 LP</string>
     <string name="tournament_register_result">Registra risultato</string>
+    <string name="tournament_switch_deck">Cambia mazzo</string>
+    <string name="tournament_opponent_deck_pick">Collega mazzo avversario (opzionale)</string>
+    <string name="tournament_no_decks_to_pick">Nessun mazzo salvato</string>
     <string name="editor_combo_report_actions">Aggiunte suggerite</string>
     <string name="editor_combo_report_empty">Nessuna linea combo curata combacia ancora con questo mazzo. Aggiungi pezzi engine (starter, Hand, Artifact…).</string>
     <string name="editor_combo_report_lines">Linee trovate</string>

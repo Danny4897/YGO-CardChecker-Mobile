@@ -42,7 +42,12 @@ interface DeckRepository {
     suspend fun setCard(id: Long, card: Card, quantity: Int, section: DeckSection)
     suspend fun setCoverCards(id: Long, coverCardIds: List<Int>)
     suspend fun setPublic(id: Long, isPublic: Boolean)
-    suspend fun persistImported(name: String, cards: List<DeckCard>): AppResult<Long>
+    suspend fun persistImported(
+        name: String,
+        cards: List<DeckCard>,
+        isExternal: Boolean = false,
+        groupName: String? = null,
+    ): AppResult<Long>
     suspend fun importText(text: String): AppResult<List<DeckCard>>
     fun exportText(cards: List<DeckCard>): String
     suspend fun importYdke(uri: String): AppResult<List<DeckCard>>
@@ -213,11 +218,11 @@ class DefaultImportDeckFromText @Inject constructor(private val repo: DeckReposi
     override suspend fun invoke(text: String) = repo.importText(text)
 }
 fun interface PersistImportedDeck {
-    suspend fun invoke(name: String, cards: List<DeckCard>): AppResult<Long>
+    suspend fun invoke(name: String, cards: List<DeckCard>, isExternal: Boolean, groupName: String?): AppResult<Long>
 }
 class DefaultPersistImportedDeck @Inject constructor(private val repo: DeckRepository) : PersistImportedDeck {
-    override suspend fun invoke(name: String, cards: List<DeckCard>) =
-        repo.persistImported(name.trim().ifBlank { "Imported deck" }, cards)
+    override suspend fun invoke(name: String, cards: List<DeckCard>, isExternal: Boolean, groupName: String?) =
+        repo.persistImported(name.trim().ifBlank { "Imported deck" }, cards, isExternal, groupName?.trim()?.ifBlank { null })
 }
 fun interface ExportDeckToText { fun invoke(cards: List<DeckCard>): String }
 class DefaultExportDeckToText @Inject constructor(private val repo: DeckRepository) : ExportDeckToText {
