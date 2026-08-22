@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 21
-        versionName = "0.5.0"
+        versionCode = 22
+        versionName = "0.6.0"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Redesign Cyber Duel HUD: nuova palette, badge tipo/attributo carta, 5 tab di navigazione\\n• Rimossa la drawer, Settings/Overlay ora raggiungibili dall'ingranaggio in alto",
+                "• Nuovo: Scan a card, punta la fotocamera su una carta per cercarla\\n• Prezzo/valore mazzo e Budget helper (swap economici)\\n• Compagno da torneo: note, cronologia match, life point counter",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
