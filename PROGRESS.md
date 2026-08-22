@@ -2,6 +2,13 @@
 
 ## Open
 
+- **BLOCCANTE social — abilitare "Anonymous sign-ins"** nel dashboard Supabase del progetto `ygochecker`
+  (`ubflewrwtpbrbkjdohfx`) → Authentication → Providers, e confermare il redirect URL
+  `ygochecker://oauth/magiclink` in Authentication → URL Configuration. Verificato via MCP Supabase
+  (2026-08-22): RLS/schema/constraint su `public_decks`/`deck_messages` sono corretti (insert testato
+  impersonando l'utente reale via JWT claim, riuscito), ma **zero righe sono mai state scritte** in
+  `public_decks`/`deck_messages` e **zero identity `anonymous`** esistono in `auth.identities` — nessun
+  publish è mai arrivato in fondo. Nessun tool MCP espone il toggle provider, va fatto a mano da dashboard.
 - **AI Complete deck** — oggi rule/synergy + text/LUA profiles; futuro modello su mazzi pubblici + replay
 - **Nuove feature DB-powered** — lista spesa mazzo↔collezione, meta snapshot mazzi pubblici, alert banlist
   schedulati (schema `user_alerts`/`banlist_snapshots` già pronto lato Supabase, non ancora popolato)
@@ -10,6 +17,21 @@
 - **Cloud sync** profilo/amici/mazzi/replay keyed by Discord/Google subject
 
 ## Done
+
+- 2026-08-22: **Fix thread mazzo pubblico irraggiungibile** (branch `claude/app-innovation-ideas-t2s7fv`) —
+  root cause diagnosticata via MCP Supabase: `DecklistScreen.setVisibility` scartava l'`AppResult` di
+  `social.publishDeck`/`unpublishDeck`, quindi un publish fallito (es. sessione scaduta → fallback
+  `signInAnonymously()` → provider anonimo disabilitato lato dashboard) lasciava comunque il flag locale
+  `isPublic=true`, mostrando il mazzo come pubblico in Profile senza che la riga esistesse mai su
+  `public_decks`. `ProfileScreen.openMyPublicDeck` poi apriva comunque il thread con un id "provvisorio"
+  mai scritto (commento errato "getPublicDeck resolves it" — non lo fa, fa un lookup esatto per id), quindi
+  `getPublicDeck` tornava sempre `social.deck_not_found`. Fix: `setVisibility` ora rollback il flag locale e
+  mostra l'errore (snackbar `err:` esistente) se il publish/unpublish remoto fallisce; `openMyPublicDeck` non
+  invoca più `onOpened` se il publish fallisce, mostra solo il notice. Aggiunto pulsante "Riprova" sul notice
+  di `ProfileRoute` per re-invocare `bootstrap()` senza dover riavviare l'app. Resta bloccato dal toggle
+  Supabase in cima a **Open** — senza quello nessun publish potrà comunque riuscire. **Build/test Kotlin non
+  eseguibile in questo sandbox** (stesso limite di rete già noto: `dl.google.com`/AGP bloccato dal proxy),
+  quindi nessuna compilazione verificata — solo lettura/coerenza di tipi contro il resto del file.
 
 - 2026-08-21: **SEGOC Flow Coach** (branch `refactor/segoc-flow-coach`, spec `docs/superpowers/specs/2026-08-21-segoc-flow-coach-design.md`,
   plan `docs/superpowers/plans/2026-08-21-segoc-flow-coach.md`) — Flow tab passa da catalogo HAT curato a coach sul

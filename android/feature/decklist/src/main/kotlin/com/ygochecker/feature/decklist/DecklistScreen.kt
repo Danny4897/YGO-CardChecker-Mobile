@@ -243,8 +243,14 @@ data class DeckComboReportUi(
         setPublic.invoke(id, isPublic)
         val deck = getDeck.invoke(id).first()
         if (deck != null) {
-            if (isPublic) social.publishDeck(deck)
-            else social.unpublishDeck(id)
+            val result = if (isPublic) social.publishDeck(deck) else social.unpublishDeck(id)
+            if (result is AppResult.Err) {
+                // Remote publish/unpublish failed — don't leave the local flag claiming a
+                // state (e.g. "public") that was never actually reached on the server, or the
+                // deck becomes an unreachable thread in Profile.
+                setPublic.invoke(id, !isPublic)
+                completeNotice = "err:${result.error.errorKey}"
+            }
         }
     }
     fun clearCompleteNotice() { completeNotice = null }
