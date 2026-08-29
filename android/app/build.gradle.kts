@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 24
-        versionName = "0.7.0"
+        versionCode = 25
+        versionName = "0.7.1"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Nuovo: motore SEGOC arbitro (ordine chain/APNAP/LIFO) + puzzle di allenamento\\n• Linee combo curate (libreria iniziale, in crescita)\\n• Rimosso overlay MDPRO, sostituito dal nuovo Field/Puzzle",
+                "• Fix motore SEGOC: distinzione tra auto-resuscita dal Cimitero (Plaguespreader) e Evocazione Speciale di un altro mostro dal Cimitero (Mezuki, Superbia) — tag revives_from_gy/ss_from_gy ora corretti",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
