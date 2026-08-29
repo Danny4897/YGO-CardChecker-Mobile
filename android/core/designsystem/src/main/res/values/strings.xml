@@ -542,6 +542,14 @@
     <string name="editor_budget_empty">No synergy-linked alternative is cheaper than what you already have — or none of your cards have a known price yet (try syncing the full catalog in Settings).</string>
     <string name="editor_budget_savings">Save %1$s</string>
     <string name="editor_budget_apply">Swap</string>
+    <string name="editor_suggest_cards">Suggest cards</string>
+    <string name="editor_suggest_cards_title">Cards to add</string>
+    <string name="editor_suggest_cards_empty">No gap found, or no synergy-linked card fills one — try again after adding a few cards.</string>
+    <string name="editor_suggest_cards_add">Add</string>
+    <string name="editor_generate_combos">Generate combo lines (beta)</string>
+    <string name="editor_generate_combos_title">Generated combo lines</string>
+    <string name="editor_generate_combos_disclaimer">Computed from your deck\'s own cards, not written or checked by a person — sanity-check before relying on them.</string>
+    <string name="editor_generate_combos_empty">No GY filler/user pair found in this deck yet.</string>
     <string name="editor_tournament_companion">Tournament companion</string>
     <string name="tournament_title">%1$s — Tournament</string>
     <string name="tournament_open_duel_helper">Open duel helper</string>

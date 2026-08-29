@@ -77,7 +77,10 @@ abstract class DependencyModule {
     @Binds abstract fun generateDeckFlows(value: DefaultGenerateDeckFlows): GenerateDeckFlows
     @Binds abstract fun suggestCombosForCard(value: DefaultSuggestCombosForCard): SuggestCombosForCard
     @Binds abstract fun analyzeDeckCombos(value: DefaultAnalyzeDeckCombos): AnalyzeDeckCombos
+    @Binds abstract fun generateComboLines(value: DefaultGenerateComboLines): GenerateComboLines
     @Binds abstract fun suggestBudgetSwaps(value: DefaultSuggestBudgetSwaps): SuggestBudgetSwaps
+    @Binds abstract fun analyzeDeckRoleGaps(value: DefaultAnalyzeDeckRoleGaps): AnalyzeDeckRoleGaps
+    @Binds abstract fun suggestSynergisticCards(value: DefaultSuggestSynergisticCards): SuggestSynergisticCards
     @Binds abstract fun deckFlowLinks(value: RoomDeckFlowLinkRepository): DeckFlowLinkRepository
     @Binds abstract fun appUpdateRepository(value: com.ygochecker.android.update.HttpAppUpdateRepository): AppUpdateRepository
     @Binds abstract fun checkAppUpdate(value: DefaultCheckAppUpdate): CheckAppUpdate

@@ -122,6 +122,7 @@ import com.ygochecker.core.designsystem.errorMessage
 import com.ygochecker.core.designsystem.formatPriceEur
 import com.ygochecker.core.domain.AnalyzeDeckCombos
 import com.ygochecker.core.domain.BudgetSwapSuggestion
+import com.ygochecker.core.domain.CardSuggestion
 import com.ygochecker.core.domain.CompleteDeck
 import com.ygochecker.core.domain.CreateDecklist
 import com.ygochecker.core.domain.DeleteDecklist
@@ -130,7 +131,9 @@ import com.ygochecker.core.domain.ExportDeckToText
 import com.ygochecker.core.domain.ExportDeckToYdk
 import com.ygochecker.core.domain.ExportDeckToYdke
 import com.ygochecker.core.domain.FormatPreference
+import com.ygochecker.core.domain.GenerateComboLines
 import com.ygochecker.core.domain.GenerateDeckFlows
+import com.ygochecker.core.domain.GeneratedComboLineUi
 import com.ygochecker.core.domain.GetDecklist
 import com.ygochecker.core.domain.GetEffectScript
 import com.ygochecker.core.domain.GetLocalizedCard
@@ -150,6 +153,7 @@ import com.ygochecker.core.domain.SetDeckPuzzleOpponent
 import com.ygochecker.core.domain.SocialRepository
 import com.ygochecker.core.domain.SuggestBudgetSwaps
 import com.ygochecker.core.domain.SuggestCombosForCard
+import com.ygochecker.core.domain.SuggestSynergisticCards
 import com.ygochecker.core.model.AppLanguage
 import com.ygochecker.core.model.Card
 import com.ygochecker.core.model.ComboActionKind
@@ -199,6 +203,8 @@ data class DeckComboReportUi(
     private val suggestCombos: SuggestCombosForCard,
     private val analyzeDeckCombos: AnalyzeDeckCombos,
     private val suggestBudgetSwaps: SuggestBudgetSwaps,
+    private val suggestCardsUseCase: SuggestSynergisticCards,
+    private val generateComboLinesUseCase: GenerateComboLines,
     private val completeDeckUseCase: CompleteDeck,
     private val generateDeckFlows: GenerateDeckFlows,
     private val importText: ImportDeckFromText,
@@ -241,6 +247,14 @@ data class DeckComboReportUi(
     var budgetSuggestions by mutableStateOf<List<BudgetSwapSuggestion>?>(null)
         private set
     var budgetBusy by mutableStateOf(false)
+        private set
+    var cardSuggestions by mutableStateOf<List<CardSuggestion>?>(null)
+        private set
+    var cardSuggestionsBusy by mutableStateOf(false)
+        private set
+    var generatedCombos by mutableStateOf<List<GeneratedComboLineUi>?>(null)
+        private set
+    var generatedCombosBusy by mutableStateOf(false)
         private set
 
     init {
@@ -286,6 +300,25 @@ data class DeckComboReportUi(
         setQuantity.invoke(id, suggestion.expensive.card, 0, suggestion.expensive.section)
         if (addQuantity > 0) setQuantity.invoke(id, suggestion.alternative, addQuantity, suggestion.expensive.section)
         suggestBudget()
+    }
+    fun closeCardSuggestions() { cardSuggestions = null }
+    fun suggestCards() = viewModelScope.launch {
+        val id = selected.value?.id ?: return@launch
+        cardSuggestionsBusy = true
+        cardSuggestions = suggestCardsUseCase.invoke(id, format.value, maxSuggestions = 8)
+        cardSuggestionsBusy = false
+    }
+    fun addSuggestedCard(suggestion: CardSuggestion) = viewModelScope.launch {
+        val id = selected.value?.id ?: return@launch
+        setQuantity.invoke(id, suggestion.card, 1, DeckSection.MAIN)
+        suggestCards()
+    }
+    fun closeGeneratedCombos() { generatedCombos = null }
+    fun generateCombos() = viewModelScope.launch {
+        val id = selected.value?.id ?: return@launch
+        generatedCombosBusy = true
+        generatedCombos = generateComboLinesUseCase.invoke(id, format.value)
+        generatedCombosBusy = false
     }
     fun analyzeCombos() = viewModelScope.launch {
         val id = selected.value?.id ?: return@launch
@@ -600,6 +633,8 @@ data class DeckComboReportUi(
             onGenerateFlows = vm::generateFlows,
             onAnalyzeCombos = vm::analyzeCombos,
             onSuggestBudget = vm::suggestBudget,
+            onSuggestCards = vm::suggestCards,
+            onGenerateCombos = vm::generateCombos,
             completeBusy = vm.completeBusy,
         )
         SnackbarHost(
@@ -639,6 +674,21 @@ data class DeckComboReportUi(
             busy = vm.budgetBusy,
             onApply = vm::applyBudgetSwap,
             onDismiss = vm::closeBudgetSuggestions,
+        )
+    }
+    vm.cardSuggestions?.let { suggestions ->
+        CardSuggestionSheet(
+            suggestions = suggestions,
+            busy = vm.cardSuggestionsBusy,
+            onAdd = vm::addSuggestedCard,
+            onDismiss = vm::closeCardSuggestions,
+        )
+    }
+    vm.generatedCombos?.let { lines ->
+        GeneratedComboSheet(
+            lines = lines,
+            busy = vm.generatedCombosBusy,
+            onDismiss = vm::closeGeneratedCombos,
         )
     }
     var saveCollectionOpen by remember { mutableStateOf(false) }
@@ -881,6 +931,8 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
     onGenerateFlows: () -> Unit,
     onAnalyzeCombos: () -> Unit,
     onSuggestBudget: () -> Unit,
+    onSuggestCards: () -> Unit,
+    onGenerateCombos: () -> Unit,
     completeBusy: Boolean,
 ) {
     var section by remember { mutableStateOf(DeckSection.MAIN) }
@@ -1125,6 +1177,18 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
                             text = { Text(stringResource(DesignR.string.editor_suggest_budget)) },
                             leadingIcon = { Icon(Icons.Default.Savings, null) },
                             onClick = { menuOpen = false; onSuggestBudget() },
+                            enabled = !completeBusy,
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(DesignR.string.editor_suggest_cards)) },
+                            leadingIcon = { Icon(Icons.Default.AutoAwesome, null) },
+                            onClick = { menuOpen = false; onSuggestCards() },
+                            enabled = !completeBusy,
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(DesignR.string.editor_generate_combos)) },
+                            leadingIcon = { Icon(Icons.Default.AccountTree, null) },
+                            onClick = { menuOpen = false; onGenerateCombos() },
                             enabled = !completeBusy,
                         )
                         DropdownMenuItem(
@@ -1520,6 +1584,133 @@ private fun BudgetSwapSheet(
                             }
                             FilledTonalButton(onClick = { onApply(s) }) {
                                 Text(stringResource(DesignR.string.editor_budget_apply))
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(DuelSpacing.space2))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CardSuggestionSheet(
+    suggestions: List<CardSuggestion>,
+    busy: Boolean,
+    onAdd: (CardSuggestion) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = DuelSpacing.space4)
+                .padding(bottom = DuelSpacing.space4)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+        ) {
+            Text(stringResource(DesignR.string.editor_suggest_cards_title), style = MaterialTheme.typography.titleLarge)
+            when {
+                busy -> Box(Modifier.fillMaxWidth().padding(vertical = DuelSpacing.space4), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                suggestions.isEmpty() -> Text(
+                    stringResource(DesignR.string.editor_suggest_cards_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> suggestions.forEach { s ->
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            Modifier.padding(DuelSpacing.space3),
+                            horizontalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    s.card.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    s.reason,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            FilledTonalButton(onClick = { onAdd(s) }) {
+                                Text(stringResource(DesignR.string.editor_suggest_cards_add))
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(DuelSpacing.space2))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GeneratedComboSheet(
+    lines: List<GeneratedComboLineUi>,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = DuelSpacing.space4)
+                .padding(bottom = DuelSpacing.space4)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(DuelSpacing.space3),
+        ) {
+            Text(stringResource(DesignR.string.editor_generate_combos_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(DesignR.string.editor_generate_combos_disclaimer),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            when {
+                busy -> Box(Modifier.fillMaxWidth().padding(vertical = DuelSpacing.space4), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                lines.isEmpty() -> Text(
+                    stringResource(DesignR.string.editor_generate_combos_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> lines.forEachIndexed { index, line ->
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            Modifier.padding(DuelSpacing.space3),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                "${index + 1}.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            line.steps.forEach { step ->
+                                Text(step, style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     }

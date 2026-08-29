@@ -542,6 +542,14 @@
     <string name="editor_budget_empty">Nessuna alternativa sinergica costa meno di quello che hai già — oppure le tue carte non hanno ancora un prezzo noto (prova a sincronizzare il catalogo completo in Impostazioni).</string>
     <string name="editor_budget_savings">Risparmi %1$s</string>
     <string name="editor_budget_apply">Sostituisci</string>
+    <string name="editor_suggest_cards">Suggerisci carte</string>
+    <string name="editor_suggest_cards_title">Carte da aggiungere</string>
+    <string name="editor_suggest_cards_empty">Nessuna lacuna trovata, o nessuna carta sinergica la copre — riprova dopo aver aggiunto qualche carta.</string>
+    <string name="editor_suggest_cards_add">Aggiungi</string>
+    <string name="editor_generate_combos">Genera linee combo (beta)</string>
+    <string name="editor_generate_combos_title">Linee combo generate</string>
+    <string name="editor_generate_combos_disclaimer">Calcolate dalle carte del tuo mazzo, non scritte né verificate da una persona — controllale prima di fidartene in torneo.</string>
+    <string name="editor_generate_combos_empty">Nessuna coppia riempi-cimitero/usa-cimitero trovata in questo mazzo.</string>
     <string name="editor_tournament_companion">Compagno da torneo</string>
     <string name="tournament_title">%1$s — Torneo</string>
     <string name="tournament_open_duel_helper">Apri Duel Helper</string>

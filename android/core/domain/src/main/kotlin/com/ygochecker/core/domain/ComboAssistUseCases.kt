@@ -2,7 +2,9 @@ package com.ygochecker.core.domain
 
 import com.ygochecker.core.model.ComboAssistEngine
 import com.ygochecker.core.model.ComboLineAdvice
+import com.ygochecker.core.model.ComboPlanner
 import com.ygochecker.core.model.DeckComboReport
+import com.ygochecker.core.model.DeckSection
 import com.ygochecker.core.model.GameFormat
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -58,5 +60,34 @@ class DefaultAnalyzeDeckCombos @Inject constructor(
             graphs = catalog.graphs(format),
             roles = catalog.allRoles(format),
         )
+    }
+}
+
+/** One generated line, already resolved to readable step text — never merged with curated [com.ygochecker.core.model.ComboRecipe] content. */
+data class GeneratedComboLineUi(val steps: List<String>, val cardIds: List<Int>)
+
+/**
+ * Computed combo lines (see [ComboPlanner]) for the deck's own cards — not hand-authored,
+ * always labeled as such in the UI. Complements [AnalyzeDeckCombos], which only reports on
+ * curated Flow/role content.
+ */
+fun interface GenerateComboLines {
+    suspend fun invoke(deckId: Long, format: GameFormat, maxLines: Int = 10): List<GeneratedComboLineUi>
+}
+
+class DefaultGenerateComboLines @Inject constructor(
+    private val decks: DeckRepository,
+    private val pack: OfflinePackRepository,
+) : GenerateComboLines {
+    override suspend fun invoke(deckId: Long, format: GameFormat, maxLines: Int): List<GeneratedComboLineUi> {
+        val deck = decks.observeDeck(deckId).first() ?: return emptyList()
+        val active = deck.cards.filter { it.section != DeckSection.SIDE }
+        if (active.isEmpty()) return emptyList()
+        val namesById = active.associate { it.card.id to it.card.name }
+        val tagsById = pack.effectScripts(active.map { it.card.id })
+            .associate { it.cardId to it.tags.toSet() }
+        return ComboPlanner.plan(tagsById, maxLines).map { line ->
+            GeneratedComboLineUi(steps = line.describe(namesById), cardIds = line.cardIds)
+        }
     }
 }

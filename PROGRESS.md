@@ -11,7 +11,13 @@
 - **Camera scan v2** — v1 (sotto, Done) fa OCR solo sul primo text block per fuzzy-match nome; da valutare
   vero image-matching (art/foil) per i casi in cui l'OCR non arriva a un match affidabile.
 - **Budget helper v2** — oggi 1 sostituzione per carta costosa via synergy graph (`GetRelatedCards`) filtrata
-  per prezzo più basso; non tiene conto di ruolo funzionale (starter vs extender) né di combo breakage.
+  per prezzo più basso; **il ruolo funzionale ora esiste** (`CardRoleClassifier`, vedi Done sotto) ma
+  `SuggestBudgetSwaps` non lo consulta ancora — prossimo step naturale, evita che uno swap tolga l'unico
+  INTERRUPT del mazzo.
+- **Combo planner v2** — oggi `ComboPlanner` (Done sotto) genera solo catene a 2-3 step sul pattern
+  riempi-cimitero/usa-cimitero (`GY_ENGINE_COMPLEMENTS`); non copre combo che non passano dal cimitero
+  (es. linee Xyz/Link pure) né incatenamenti più lunghi — richiederebbe modellare costi/copie in mano, non
+  solo composizione mazzo.
 - **BLOCCANTE social — abilitare "Anonymous sign-ins"** nel dashboard Supabase del progetto `ygochecker`
   (`ubflewrwtpbrbkjdohfx`) → Authentication → Providers, e confermare il redirect URL
   `ygochecker://oauth/magiclink` in Authentication → URL Configuration. Verificato via MCP Supabase
@@ -28,6 +34,37 @@
 
 ## Done
 
+- 2026-08-29: **Motore di suggerimento carte/combo, generico e computato** (branch
+  `claude/card-suggestion-engine-22o37e`) — sostituisce i bridge hardcoded per archetipo con logica
+  data-driven su ogni carta del catalogo, riusando l'infrastruttura tag esistente (script LUA +
+  `EffectTextProfiler`), non la pipeline TS esterna (`ygo-card-checker/` è un gitlink orfano, non nel
+  repo — irraggiungibile da questo sandbox):
+  - **Synergy graph generico** — `SynergyEnrichment.engineNeedles()` (nomi hardcoded tipo
+    `"zombie" → "Zombie World"`, `"hero" → "Polymerization"`) rimosso, sostituito da
+    `EffectMechanicTags.complementaryTags()`: tabella piccola di coppie meccaniche complementari
+    (chi riempie il cimitero ↔ chi lo sfrutta), funziona su ogni archetipo del catalogo. Attivo subito
+    sulle "carte correlate" esistenti, nessun nuovo asset/migrazione.
+  - **`CardRoleClassifier`** (core:model) — deriva il ruolo funzionale (INTERRUPT/REMOVAL/SEARCHER/
+    EXTENDER/BAIT/ENGINE_STARTER/TRAP_LINE, riusa `HatCardRole`) da tag+statistiche per **qualunque**
+    carta, non solo quelle con `FormatCardRole` curato (oggi solo HAT). Il curato, dove esiste, vince
+    sempre sul derivato.
+  - **`AnalyzeDeckRoleGaps` + `SuggestSynergisticCards`** (core:domain, nuovo file `SuggestionEngine.kt`)
+    — conta i ruoli del mazzo attivo (Main+Extra), segnala i ruoli sotto soglia (INTERRUPT<3, REMOVAL<2,
+    SEARCHER<1, EXTENDER<1 — soglie fisse, non per-archetipo), cerca in catalogo carte legali per formato
+    che coprono il gap E sono sinergiche con carte già in mazzo (via `GetRelatedCards` esistente), ranked
+    per synergy score con spiegazione leggibile. Wired in Decklist: menu → **Suggerisci carte** → bottom
+    sheet con tasto Aggiungi 1-click.
+  - **`ComboPlanner`** (core:model, nuovo file) — genera linee combo (non curate, mai unite a
+    `ComboRecipe`) incatenando sul pattern riempi-cimitero→usa-cimitero, bounded a 2-3 step, solo sulle
+    carte realmente nel mazzo. Deliberatamente conservativo: ragiona su composizione mazzo (come
+    `matchRecipes`/SEGOC lesson), non su una mano simulata — l'app non ha un hand-tester. Wired in
+    Decklist: menu → **Genera linee combo (beta)**, sheet con disclaimer "non verificato da una persona".
+  - Test unitari nuovi: `CardRoleClassifierTest`, `ComboPlannerTest`, `SuggestionEngineTest`,
+    `GenerateComboLinesTest`, + 3 test su `EffectMechanicTags.complementaryTags`. **Non compilabile/
+    verificabile in questo sandbox** (stesso limite noto: `dl.google.com`/AGP bloccato dal proxy di rete)
+    — solo review manuale del codice, nessuna build/test Gradle eseguita. Verificare
+    `JAVA_HOME`=JBR + `./gradlew :core:model:test :core:domain:test :data:cards:test :app:assembleDebug`
+    prima del rilascio.
 - 2026-08-22: **SEGOC Field + Puzzle + recipe library** (branch `refactor/segoc-tmm-field`, merge con main) —
   overlay module rimosso (`settings.gradle.kts`/app deps/nessun OverlayRoute/no SYSTEM_ALERT_WINDOW);
   `TimingRuleEngine` tenuto. SegocLesson (arbitro ordine SEGOC/APNAP/LIFO sui trigger event reali del mazzo,
