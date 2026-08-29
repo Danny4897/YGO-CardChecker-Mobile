@@ -41,10 +41,11 @@ internal object SynergyEnrichment {
             }
         }
 
-        // 2) Named engine bridges from context.
-        for ((relation, needle, bonus) in engineNeedles(source, tags, archetypes, races, text)) {
-            dao.cardsMatchingNeedle(needle, sourceId, 10).forEach { row ->
-                merge(out, row.id, row.name, relation, bonus)
+        // 2) Generic GY-engine complements (filler <-> user) — works for every archetype,
+        // not just the ones someone hardcoded a name list for.
+        for (complement in EffectMechanicTags.complementaryTags(tags)) {
+            dao.cardsWithEffectTag(complement, sourceId, 8).forEach { row ->
+                merge(out, row.id, row.name, "gy_engine_complement", 1.5)
             }
         }
 
@@ -103,59 +104,6 @@ internal object SynergyEnrichment {
         }
 
         return out.values.sortedByDescending { it.score }.take(limit.coerceAtLeast(24))
-    }
-
-    private fun engineNeedles(
-        source: Card?,
-        tags: Set<String>,
-        archetypes: Set<String>,
-        races: Set<String>,
-        text: EffectTextProfiler.Profile?,
-    ): List<Triple<String, String, Double>> {
-        if (source == null) return emptyList()
-        val attr = source.attribute?.uppercase().orEmpty()
-        val race = source.race?.uppercase().orEmpty()
-        val type = source.type.uppercase()
-        val name = source.name
-        val gyish = tags.any { it.contains("gy") || it == "mills" || it == "sends_to_gy" || it == "banishes" }
-        val out = mutableListOf<Triple<String, String, Double>>()
-
-        if (gyish && (race.contains("DRAGON") || type.contains("DRAGON"))) {
-            out += Triple("mill_synergy", "Lightsworn", 1.55)
-            out += Triple("banish_synergy", "Dragon Ruler", 1.55)
-            out += Triple("banish_synergy", "Chaos", 1.25)
-        }
-        if (gyish && attr == "LIGHT") {
-            out += Triple("mill_synergy", "Lightsworn", 1.45)
-            out += Triple("banish_synergy", "Chaos", 1.3)
-        }
-        if ("hero" in archetypes || name.contains("HERO", ignoreCase = true)) {
-            out += Triple("engine_synergy", "Elemental HERO", 1.55)
-            out += Triple("engine_synergy", "HERO", 1.4)
-            out += Triple("engine_synergy", "Polymerization", 1.5)
-            out += Triple("engine_synergy", "Fusion", 1.2)
-        }
-        if ("lightsworn" in archetypes) {
-            out += Triple("mill_synergy", "Lightsworn", 1.6)
-            out += Triple("mill_synergy", "Judgment Dragon", 1.7)
-        }
-        // Zombie engine (Field + GY enablers) — text-driven for Zombie World and friends.
-        if ("zombie" in archetypes || "Zombie" in races || text?.isTypeChangeField == true && "Zombie" in races) {
-            out += Triple("engine_synergy", "Zombie World", 2.2)
-            out += Triple("engine_synergy", "Paladin of the Cursed Dragon", 2.15)
-            out += Triple("engine_synergy", "Plaguespreader Zombie", 1.9)
-            out += Triple("engine_synergy", "Mezuki", 1.85)
-            out += Triple("engine_synergy", "Book of Life", 1.7)
-            out += Triple("engine_synergy", "Doomkaiser Dragon", 1.75)
-            out += Triple("engine_synergy", "Zombie Master", 1.7)
-            out += Triple("engine_synergy", "Goblin Zombie", 1.55)
-            out += Triple("engine_synergy", "Pyramid Turtle", 1.55)
-        }
-        val desc = source.description
-        if (desc.contains("banish", ignoreCase = true) && race.contains("DRAGON")) {
-            out += Triple("banish_synergy", "Dragon Ruler", 1.5)
-        }
-        return out.distinctBy { it.first to it.second }
     }
 
     private fun merge(

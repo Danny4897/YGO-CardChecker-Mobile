@@ -94,4 +94,29 @@ class EffectMechanicTagsTest {
         assertTrue(EffectMechanicTags.displayLabel("ss_from_gy") == "Ss from gy")
         assertTrue(EffectMechanicTags.displayLabel("revives_from_gy").startsWith("R"))
     }
+
+    @Test
+    fun complementaryTags_gyFiller_findsGyUserTags() {
+        // A generic mill/discard card (any archetype) should point at GY-user tags.
+        val complements = EffectMechanicTags.complementaryTags(listOf("hand_to_gy"))
+        assertTrue(complements.contains("ss_from_gy"))
+        assertTrue(complements.contains("revives_from_gy"))
+        assertTrue(complements.contains("gy_effect"))
+        assertFalse(complements.contains("hand_to_gy"))
+    }
+
+    @Test
+    fun complementaryTags_gyUser_findsFillerTags() {
+        // The reverse direction: a GY-user should point back at every filler mechanic.
+        val complements = EffectMechanicTags.complementaryTags(listOf("ss_from_gy"))
+        assertTrue(complements.contains("hand_to_gy"))
+        assertTrue(complements.contains("sends_to_gy"))
+        assertTrue(complements.contains("mills"))
+        assertTrue(complements.contains("discards"))
+    }
+
+    @Test
+    fun complementaryTags_unrelatedTag_isEmpty() {
+        assertTrue(EffectMechanicTags.complementaryTags(listOf("negates")).isEmpty())
+    }
 }

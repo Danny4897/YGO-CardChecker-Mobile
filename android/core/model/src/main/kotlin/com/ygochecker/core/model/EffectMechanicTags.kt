@@ -42,6 +42,37 @@ object EffectMechanicTags {
         "self_ss_from_gy" to "revives_from_gy",
     )
 
+    /**
+     * Generic mechanic partnerships: a card that fills the GY is a functional partner for any
+     * card that spends the GY, regardless of archetype (Zombie/Lightsworn/Dragon Ruler alike).
+     * Keyed by "filler" tag -> "user" tags it enables. Deliberately small and archetype-agnostic —
+     * named-package bridges (e.g. HERO -> Polymerization) belong in curated ComboRecipe/FormatCardRole,
+     * not here.
+     */
+    private val GY_ENGINE_COMPLEMENTS: Map<String, Set<String>> = mapOf(
+        "hand_to_gy" to setOf("ss_from_gy", "revives_from_gy", "gy_effect"),
+        "sends_to_gy" to setOf("ss_from_gy", "revives_from_gy", "gy_effect"),
+        "mills" to setOf("ss_from_gy", "revives_from_gy", "gy_effect"),
+        "discards" to setOf("ss_from_gy", "revives_from_gy", "gy_effect"),
+    )
+
+    /**
+     * For a card's own tags, the tags of its functional partners: fillers when this card is a
+     * user, users when this card is a filler. Excludes the input tags themselves (same-tag
+     * matches are handled separately as a stronger signal).
+     */
+    fun complementaryTags(tags: Collection<String>): Set<String> {
+        val input = tags.toSet()
+        val out = linkedSetOf<String>()
+        for (t in input) {
+            GY_ENGINE_COMPLEMENTS[t]?.let { out += it }
+            for ((filler, users) in GY_ENGINE_COMPLEMENTS) {
+                if (t in users) out += filler
+            }
+        }
+        return out - input
+    }
+
     fun csv(tags: Collection<String>): String =
         tags.map(String::trim).filter(String::isNotEmpty).distinct().sorted().joinToString(",")
 
