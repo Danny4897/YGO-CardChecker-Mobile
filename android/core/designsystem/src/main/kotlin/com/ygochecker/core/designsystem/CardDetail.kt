@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -86,6 +87,7 @@ fun CardDetailSheet(
     onRelatedOpen: ((RelatedCardRef) -> Unit)? = null,
     onRelatedAdd: ((RelatedCardRef) -> Unit)? = null,
     onSaveToCollection: (() -> Unit)? = null,
+    onBuildDeck: (() -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -99,6 +101,7 @@ fun CardDetailSheet(
             onRelatedOpen = onRelatedOpen,
             onRelatedAdd = onRelatedAdd,
             onSaveToCollection = onSaveToCollection,
+            onBuildDeck = onBuildDeck,
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
@@ -117,6 +120,7 @@ fun CardDetailContent(
     onRelatedOpen: ((RelatedCardRef) -> Unit)? = null,
     onRelatedAdd: ((RelatedCardRef) -> Unit)? = null,
     onSaveToCollection: (() -> Unit)? = null,
+    onBuildDeck: (() -> Unit)? = null,
 ) {
     val card = state.card
     val context = LocalContext.current
@@ -192,6 +196,20 @@ fun CardDetailContent(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(stringResource(R.string.search_save_to_collection))
+                    }
+                }
+                if (onBuildDeck != null) {
+                    FilledTonalButton(
+                        onClick = onBuildDeck,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.search_build_deck))
                     }
                 }
             }
