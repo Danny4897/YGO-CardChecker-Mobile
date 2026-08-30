@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 26
-        versionName = "0.7.2"
+        versionCode = 27
+        versionName = "0.7.3"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Completa Mazzo: le quantità suggerite ora scalano in base a quanto è pieno il deck e al ruolo della carta — starter/engine restano a copie piene più a lungo, tech/situazionali diversificano prima",
+                "• Nuovo: Crea mazzo da questa carta — dalla scheda di una carta (anche da ricerca casuale), genera subito un mazzo completo attorno a lei con l'Auto-completa",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
