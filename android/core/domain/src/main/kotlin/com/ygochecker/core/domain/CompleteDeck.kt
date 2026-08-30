@@ -273,6 +273,9 @@ class SynergyCompleteDeck @Inject constructor(
                 mainGap = mainTarget - mainQty,
                 extraGap = extraTarget - extraQty,
                 sideGap = sideTarget - sideQty,
+                mainTarget = mainTarget,
+                extraTarget = extraTarget,
+                sideTarget = sideTarget,
                 qtyById = qtyById,
                 copiesAcross = copiesAcross,
                 format = format,
@@ -360,6 +363,9 @@ class SynergyCompleteDeck @Inject constructor(
         mainGap: Int,
         extraGap: Int,
         sideGap: Int,
+        mainTarget: Int,
+        extraTarget: Int,
+        sideTarget: Int,
         qtyById: Map<Pair<Int, DeckSection>, Int>,
         copiesAcross: Map<Int, Int>,
         format: GameFormat,
@@ -383,6 +389,7 @@ class SynergyCompleteDeck @Inject constructor(
             val across = copiesAcross[id] ?: 0
             if (across >= max) continue
             val prof = profileOf(card)
+            val hatRoles = flowCatalog.rolesFor(id, format)
 
             val section = preferredSection(
                 card = card,
@@ -396,7 +403,7 @@ class SynergyCompleteDeck @Inject constructor(
                 max = max,
                 hasTuner = hasTuner,
                 format = format,
-                hatRoles = flowCatalog.rolesFor(id, format),
+                hatRoles = hatRoles,
             ) ?: continue
 
             val room = when (section) {
@@ -409,15 +416,26 @@ class SynergyCompleteDeck @Inject constructor(
             // Extra: never stack copies — diversity over 3x same Synchro.
             if (section == DeckSection.EXTRA && have >= 1) continue
             if (have >= max) continue
+            val sectionTarget = when (section) {
+                DeckSection.MAIN -> mainTarget
+                DeckSection.EXTRA -> extraTarget
+                DeckSection.SIDE -> sideTarget
+            }
+            val fullness = if (sectionTarget > 0) {
+                (1.0 - room.toDouble() / sectionTarget).coerceIn(0.0, 1.0)
+            } else {
+                0.0
+            }
+            val tier = resolveRoleTier(prof.roles, hatRoles.map { it.role })
+            val tieredMax = scaledMaxCopies(max, tier, fullness)
             val add = minOf(
-                max - have,
+                tieredMax - have,
                 room,
                 preferredCopies(max, have, prof, section),
             )
             if (add <= 0) continue
 
             var score = rawScore * prof.engineWeight
-            val hatRoles = flowCatalog.rolesFor(id, format)
             if (hatRoles.isNotEmpty()) {
                 score *= 1.0 + hatRoles.maxOf { it.priority } * 0.04
                 when {
