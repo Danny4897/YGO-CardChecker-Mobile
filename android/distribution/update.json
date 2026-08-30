@@ -1,6 +1,6 @@
 {
-  "versionCode": 26,
-  "versionName": "0.7.2",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.7.2/app-release.apk",
-  "changelog": "Completa Mazzo: le quantità suggerite ora scalano in base a quanto è pieno il deck e al ruolo della carta — starter/engine (HAT roles + effect roles) restano a copie piene più a lungo, tech/situazionali diversificano prima invece di sempre massimizzare a 3 copie."
+  "versionCode": 27,
+  "versionName": "0.7.3",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.7.3/app-release.apk",
+  "changelog": "Nuovo: Crea mazzo da questa carta — dalla scheda di una carta (anche da ricerca casuale), genera subito un mazzo completo attorno a lei con l'Auto-completa (archetipo, sinergie, partner combo)."
 }
