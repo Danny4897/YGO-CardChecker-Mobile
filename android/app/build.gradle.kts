@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 25
-        versionName = "0.7.1"
+        versionCode = 26
+        versionName = "0.7.2"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Fix motore SEGOC: distinzione tra auto-resuscita dal Cimitero (Plaguespreader) e Evocazione Speciale di un altro mostro dal Cimitero (Mezuki, Superbia) — tag revives_from_gy/ss_from_gy ora corretti",
+                "• Completa Mazzo: le quantità suggerite ora scalano in base a quanto è pieno il deck e al ruolo della carta — starter/engine restano a copie piene più a lungo, tech/situazionali diversificano prima",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.

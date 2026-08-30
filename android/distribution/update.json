@@ -1,6 +1,6 @@
 {
-  "versionCode": 25,
-  "versionName": "0.7.1",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.7.1/app-release.apk",
-  "changelog": "Fix motore SEGOC: distinzione tra auto-resuscita dal Cimitero (Plaguespreader) ed Evocazione Speciale di un altro mostro dal Cimitero (Mezuki, Superbia, Monster Reborn). Tag revives_from_gy/ss_from_gy ora corretti su tutto il catalogo."
+  "versionCode": 26,
+  "versionName": "0.7.2",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.7.2/app-release.apk",
+  "changelog": "Completa Mazzo: le quantità suggerite ora scalano in base a quanto è pieno il deck e al ruolo della carta — starter/engine (HAT roles + effect roles) restano a copie piene più a lungo, tech/situazionali diversificano prima invece di sempre massimizzare a 3 copie."
 }
