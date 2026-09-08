@@ -148,7 +148,7 @@ class AppUpdateViewModel @Inject constructor(
                 it.copy(
                     downloading = false,
                     downloadProgress = 0f,
-                    statusMessage = failedLabel,
+                    statusMessage = if (outcome.reason.isNotBlank()) "$failedLabel (${outcome.reason})" else failedLabel,
                 )
             }
         }
