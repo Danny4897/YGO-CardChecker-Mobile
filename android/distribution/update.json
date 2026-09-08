@@ -1,6 +1,6 @@
 {
-  "versionCode": 27,
-  "versionName": "0.7.3",
-  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.7.3/app-release.apk",
-  "changelog": "Nuovo: Crea mazzo da questa carta — dalla scheda di una carta (anche da ricerca casuale), genera subito un mazzo completo attorno a lei con l'Auto-completa (archetipo, sinergie, partner combo)."
+  "versionCode": 28,
+  "versionName": "0.7.4",
+  "apkUrl": "https://github.com/Danny4897/YGO-CardChecker-Mobile/releases/download/v0.7.4/app-release.apk",
+  "changelog": "Nuovo: motore di sinergia generico (funziona su ogni archetipo, non solo quelli scritti a mano) — Suggerisci carte (copre i punti deboli del mazzo con carte sinergiche) — Genera linee combo (beta, calcolate dalle carte del tuo mazzo, da verificare)."
 }
