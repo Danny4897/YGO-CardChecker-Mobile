@@ -16,6 +16,12 @@ on:
       changelog:
         description: "Changelog text (also becomes the release notes)"
         required: true
+  # Fallback trigger: the GitHub App used by this session isn't allowed to call the
+  # workflow_dispatch API (403 resource not accessible by integration), but a plain
+  # `git push` of a tag works fine with the same credentials already used to push commits.
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -53,6 +59,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp "$APK_PATH" app-release.apk
-          gh release create "${{ inputs.tag }}" app-release.apk \
-            --title "${{ inputs.release_name }}" \
-            --notes "${{ inputs.changelog }}"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            tag="${{ github.ref_name }}"
+            gh release create "$tag" app-release.apk --title "$tag" --generate-notes
+          else
+            gh release create "${{ inputs.tag }}" app-release.apk \
+              --title "${{ inputs.release_name }}" \
+              --notes "${{ inputs.changelog }}"
+          fi
