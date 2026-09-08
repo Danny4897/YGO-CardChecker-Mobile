@@ -12,15 +12,17 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 27
-        versionName = "0.7.3"
+        versionCode = 28
+        versionName = "0.7.4"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Nuovo: Crea mazzo da questa carta — dalla scheda di una carta (anche da ricerca casuale), genera subito un mazzo completo attorno a lei con l'Auto-completa",
+                "• Nuovo: motore di sinergia generico (funziona su ogni archetipo, non solo quelli scritti a mano)\\n" +
+                    "• Nuovo: Suggerisci carte — trova carte sinergiche che coprono i punti deboli del mazzo\\n" +
+                    "• Nuovo: Genera linee combo (beta) — linee calcolate dalle carte del tuo mazzo, da verificare",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.
