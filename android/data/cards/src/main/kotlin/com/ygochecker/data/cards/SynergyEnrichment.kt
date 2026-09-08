@@ -1,6 +1,7 @@
 package com.ygochecker.data.cards
 
 import com.ygochecker.core.model.Card
+import com.ygochecker.core.model.EffectMechanicTags
 import com.ygochecker.core.model.EffectScriptSummary
 import com.ygochecker.core.model.EffectTextProfiler
 import com.ygochecker.core.model.RelatedCardRef
