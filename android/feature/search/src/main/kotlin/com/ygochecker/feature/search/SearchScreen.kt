@@ -89,6 +89,7 @@ import com.ygochecker.core.designsystem.CardDetailSheet
 import com.ygochecker.core.designsystem.CardDetailState
 import com.ygochecker.core.designsystem.CardTypeBadge
 import com.ygochecker.core.designsystem.CollectionPickOption
+import com.ygochecker.core.designsystem.CompleteDeckOptionsDialog
 import com.ygochecker.core.designsystem.DuelSpacing
 import com.ygochecker.core.designsystem.EmptyState
 import com.ygochecker.core.designsystem.R as DesignR
@@ -98,6 +99,8 @@ import com.ygochecker.core.designsystem.StatusTone
 import com.ygochecker.core.designsystem.ThemedScreenHeader
 import com.ygochecker.core.designsystem.effectMechanicLabel
 import com.ygochecker.core.designsystem.formatPriceEur
+import com.ygochecker.core.common.AppResult
+import com.ygochecker.core.domain.CompleteDeck
 import com.ygochecker.core.domain.CreateDecklist
 import com.ygochecker.core.domain.EvaluateDeckLegality
 import com.ygochecker.core.domain.FormatPreference
@@ -107,6 +110,7 @@ import com.ygochecker.core.domain.GetLocalizedCard
 import com.ygochecker.core.domain.GetRelatedCards
 import com.ygochecker.core.domain.LanguagePreference
 import com.ygochecker.core.domain.ListDecklists
+import com.ygochecker.core.domain.PendingDeckSelection
 import com.ygochecker.core.domain.ProfileRepository
 import com.ygochecker.core.domain.RandomPlayableCard
 import com.ygochecker.core.domain.SearchCards
@@ -116,6 +120,7 @@ import com.ygochecker.core.model.Card
 import com.ygochecker.core.model.DeckSection
 import com.ygochecker.core.model.GameFormat
 import com.ygochecker.core.model.EffectMechanicTags
+import com.ygochecker.core.model.FormatExtraStaples
 import com.ygochecker.core.model.RelatedCardRef
 import com.ygochecker.core.model.SearchFilters
 import com.ygochecker.core.model.isExtraDeckType
@@ -124,6 +129,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
@@ -150,6 +156,8 @@ class SearchViewModel @Inject constructor(
     private val getRelated: GetRelatedCards,
     private val getLocalized: GetLocalizedCard,
     private val profile: ProfileRepository,
+    private val completeDeckUseCase: CompleteDeck,
+    private val pendingDeckSelection: PendingDeckSelection,
 ) : ViewModel() {
     val query = MutableStateFlow("")
     val filters = MutableStateFlow(SearchFilters())
@@ -180,6 +188,14 @@ class SearchViewModel @Inject constructor(
     /** Keeps the random (or last opened) card visible in the list after closing the sheet. */
     var pinnedCard by mutableStateOf<Card?>(null)
         private set
+
+    var buildDeckOpen by mutableStateOf(false)
+        private set
+    var buildDeckBusy by mutableStateOf(false)
+        private set
+    private val _deckBuilt = MutableStateFlow(0)
+    /** Bumps each time a deck finishes building — the route observes this to switch tabs. */
+    val deckBuilt = _deckBuilt.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -336,6 +352,73 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    fun openBuildDeck() {
+        val card = detail?.card ?: return
+        if (legality.maxCopies(card.id, format.value) <= 0) {
+            _noticeKey.value = SearchNotice.Forbidden(card.name)
+            return
+        }
+        buildDeckOpen = true
+    }
+
+    fun closeBuildDeck() {
+        buildDeckOpen = false
+    }
+
+    /**
+     * Seeds a brand-new deck with [detail]'s card, then runs the same synergy Auto-complete
+     * used from Decklist. The finished deck id is handed to [PendingDeckSelection] so the
+     * Decks tab can open straight to it.
+     */
+    fun buildDeckFromCard(
+        deckName: String,
+        targetMain: Int,
+        targetExtra: Int,
+        targetSide: Int,
+        extraStaples: Set<String>,
+    ) = viewModelScope.launch {
+        val card = detail?.card ?: return@launch
+        val fmt = format.value
+        val max = legality.maxCopies(card.id, fmt)
+        if (max <= 0) {
+            _noticeKey.value = SearchNotice.Forbidden(card.name)
+            buildDeckOpen = false
+            return@launch
+        }
+        buildDeckBusy = true
+        val name = deckName.trim().ifEmpty { card.name }
+        val deckId = createDeck.invoke(name)
+        val section = if (isExtraDeckType(card.type)) DeckSection.EXTRA else DeckSection.MAIN
+        setCard.invoke(deckId, card, minOf(3, max), section)
+        when (
+            val result = completeDeckUseCase.invoke(
+                deckId,
+                targetMain,
+                targetExtra,
+                targetSide,
+                fmt,
+                extraStaples,
+            )
+        ) {
+            is AppResult.Ok -> {
+                val plan = result.value
+                pendingDeckSelection.set(deckId)
+                _noticeKey.value = SearchNotice.DeckBuilt(name, plan.mainTotal, plan.extraTotal, plan.sideTotal)
+                buildDeckOpen = false
+                detail = null
+                _deckBuilt.value += 1
+            }
+            is AppResult.Err -> {
+                pendingDeckSelection.set(deckId)
+                _noticeKey.value = SearchNotice.DeckBuilt(name, minOf(3, max), 0, 0)
+                buildDeckOpen = false
+                detail = null
+                _deckBuilt.value += 1
+            }
+        }
+        buildDeckBusy = false
+    }
+
     fun consumeNotice() {
         _noticeKey.value = null
     }
@@ -345,21 +428,30 @@ sealed class SearchNotice {
     data class Added(val name: String) : SearchNotice()
     data class AtLimit(val name: String, val max: Int) : SearchNotice()
     data class Forbidden(val name: String) : SearchNotice()
+    data class DeckBuilt(val name: String, val main: Int, val extra: Int, val side: Int) : SearchNotice()
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SearchRoute(vm: SearchViewModel = hiltViewModel()) {
+fun SearchRoute(vm: SearchViewModel = hiltViewModel(), onDeckBuilt: () -> Unit = {}) {
     val query by vm.query.collectAsStateWithLifecycle()
     val results by vm.results.collectAsStateWithLifecycle()
     val format by vm.format.collectAsStateWithLifecycle()
     val notice by vm.notice.collectAsStateWithLifecycle()
+    val deckBuilt by vm.deckBuilt.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val message = when (val n = notice) {
         is SearchNotice.Added -> stringResource(DesignR.string.search_card_added, n.name)
         is SearchNotice.AtLimit -> stringResource(DesignR.string.search_at_limit, n.name, n.max)
         is SearchNotice.Forbidden -> stringResource(DesignR.string.search_forbidden, n.name)
+        is SearchNotice.DeckBuilt -> stringResource(
+            DesignR.string.search_build_deck_done,
+            n.name,
+            n.main,
+            n.extra,
+            n.side,
+        )
         null -> null
     }
     LaunchedEffect(message) {
@@ -367,6 +459,9 @@ fun SearchRoute(vm: SearchViewModel = hiltViewModel()) {
             snackbarHostState.showSnackbar(message)
             vm.consumeNotice()
         }
+    }
+    LaunchedEffect(deckBuilt) {
+        if (deckBuilt > 0) onDeckBuilt()
     }
 
     val language by vm.language.collectAsStateWithLifecycle()
@@ -560,6 +655,8 @@ fun SearchRoute(vm: SearchViewModel = hiltViewModel()) {
     }
     var saveCollectionOpen by remember { mutableStateOf(false) }
     val collections by vm.collections.collectAsStateWithLifecycle()
+    val buildDeckOpen = vm.buildDeckOpen
+    val buildDeckBusy = vm.buildDeckBusy
     vm.detail?.let { state ->
         CardDetailSheet(
             state = state,
@@ -569,6 +666,7 @@ fun SearchRoute(vm: SearchViewModel = hiltViewModel()) {
             onRelatedOpen = vm::openRelated,
             onRelatedAdd = vm::addRelated,
             onSaveToCollection = { saveCollectionOpen = true },
+            onBuildDeck = vm::openBuildDeck,
         )
         if (saveCollectionOpen) {
             SaveToCollectionDialog(
@@ -581,6 +679,29 @@ fun SearchRoute(vm: SearchViewModel = hiltViewModel()) {
                 onCreateAndSave = { name ->
                     vm.createCollectionAndSave(name, state.card.id)
                     saveCollectionOpen = false
+                },
+            )
+        }
+        if (buildDeckOpen) {
+            var deckNameDraft by remember(state.card.id) { mutableStateOf(state.card.name) }
+            CompleteDeckOptionsDialog(
+                format = format,
+                busy = buildDeckBusy,
+                title = stringResource(DesignR.string.search_build_deck_title, state.card.name),
+                body = stringResource(DesignR.string.search_build_deck_body, state.card.name),
+                onDismiss = vm::closeBuildDeck,
+                onConfirm = { targetMain, targetExtra, targetSide, staples ->
+                    vm.buildDeckFromCard(deckNameDraft, targetMain, targetExtra, targetSide, staples)
+                },
+                extraContent = {
+                    OutlinedTextField(
+                        value = deckNameDraft,
+                        onValueChange = { deckNameDraft = it.take(40) },
+                        label = { Text(stringResource(DesignR.string.search_build_deck_name)) },
+                        singleLine = true,
+                        enabled = !buildDeckBusy,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 },
             )
         }

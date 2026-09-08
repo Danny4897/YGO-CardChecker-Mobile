@@ -12,15 +12,15 @@ android {
         applicationId = "com.ygochecker.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 24
-        versionName = "0.7.0"
+        versionCode = 27
+        versionName = "0.7.3"
         // Shown once after upgrade (DuelWhatsNewDialog). Escape quotes for BuildConfig.
         buildConfigField(
             "String",
             "WHATS_NEW",
             "\"${propertyOrDefault(
                 "WHATS_NEW",
-                "• Nuovo: motore SEGOC arbitro (ordine chain/APNAP/LIFO) + puzzle di allenamento\\n• Linee combo curate (libreria iniziale, in crescita)\\n• Rimosso overlay MDPRO, sostituito dal nuovo Field/Puzzle",
+                "• Nuovo: Crea mazzo da questa carta — dalla scheda di una carta (anche da ricerca casuale), genera subito un mazzo completo attorno a lei con l'Auto-completa",
             )}\"",
         )
         // Set in android/local.properties (or CI secrets). Empty → opens provider app + manual confirm.

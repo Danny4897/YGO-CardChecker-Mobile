@@ -4,8 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -56,7 +54,6 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -108,6 +105,7 @@ import com.ygochecker.core.designsystem.CardDetailSheet
 import com.ygochecker.core.designsystem.CardDetailState
 import com.ygochecker.core.designsystem.CollectionPickOption
 import com.ygochecker.core.designsystem.ComboLinePreview
+import com.ygochecker.core.designsystem.CompleteDeckOptionsDialog
 import com.ygochecker.core.designsystem.DeckMetaRow
 import com.ygochecker.core.designsystem.DuelDeckForgeSplash
 import com.ygochecker.core.designsystem.DuelSpacing
@@ -143,6 +141,7 @@ import com.ygochecker.core.domain.ImportDeckFromYdk
 import com.ygochecker.core.domain.ImportDeckFromYdke
 import com.ygochecker.core.domain.LanguagePreference
 import com.ygochecker.core.domain.ListDecklists
+import com.ygochecker.core.domain.PendingDeckSelection
 import com.ygochecker.core.domain.PersistImportedDeck
 import com.ygochecker.core.domain.ProfileRepository
 import com.ygochecker.core.domain.RenameDecklist
@@ -218,6 +217,7 @@ data class DeckComboReportUi(
     languagePreference: LanguagePreference,
     private val evaluateLegality: EvaluateDeckLegality,
     private val profile: ProfileRepository,
+    private val pendingDeckSelection: PendingDeckSelection,
 ) : ViewModel() {
     val decks = listDecks.invoke().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private val selectedId = MutableStateFlow<Long?>(null)
@@ -261,6 +261,14 @@ data class DeckComboReportUi(
         viewModelScope.launch {
             combine(formatPreference.values, languagePreference.values) { fmt, lang -> fmt to lang }
                 .collect { (fmt, lang) -> refreshOpenDetail(fmt, lang) }
+        }
+        viewModelScope.launch {
+            pendingDeckSelection.pending.collect { id ->
+                if (id != null) {
+                    selectedId.value = id
+                    pendingDeckSelection.consume()
+                }
+            }
         }
     }
 
@@ -913,7 +921,7 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun DeckEditor(
     deck: Decklist,
     format: GameFormat,
@@ -941,12 +949,6 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
     var tournamentOpen by remember { mutableStateOf(false) }
     var deleteConfirmOpen by remember { mutableStateOf(false) }
     var completeOpen by remember { mutableStateOf(false) }
-    var targetMain by remember { mutableStateOf("40") }
-    var targetExtra by remember { mutableStateOf("15") }
-    var targetSide by remember { mutableStateOf("15") }
-    var selectedStaples by remember(format) {
-        mutableStateOf(FormatExtraStaples.defaultsFor(format))
-    }
     var renameDraft by remember(deck.name) { mutableStateOf(deck.name) }
     val backDescription = stringResource(DesignR.string.editor_back)
     if (renameOpen) {
@@ -1024,96 +1026,15 @@ private fun DeckListRow(deck: Decklist, onOpen: () -> Unit) {
         TournamentCompanionDialog(deck = deck, onDismiss = { tournamentOpen = false })
     }
     if (completeOpen) {
-        AlertDialog(
-            onDismissRequest = { if (!completeBusy) completeOpen = false },
-            title = { Text(stringResource(DesignR.string.editor_complete_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        stringResource(DesignR.string.editor_complete_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    OutlinedTextField(
-                        value = targetMain,
-                        onValueChange = { targetMain = it.filter(Char::isDigit).take(2) },
-                        label = { Text(stringResource(DesignR.string.editor_complete_main_target)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = targetExtra,
-                        onValueChange = { targetExtra = it.filter(Char::isDigit).take(2) },
-                        label = { Text(stringResource(DesignR.string.editor_complete_extra_target)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = targetSide,
-                        onValueChange = { targetSide = it.filter(Char::isDigit).take(2) },
-                        label = { Text(stringResource(DesignR.string.editor_complete_side_target)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        stringResource(DesignR.string.editor_complete_staples),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    Text(
-                        stringResource(DesignR.string.editor_complete_staples_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        TextButton({
-                            selectedStaples = FormatExtraStaples.defaultsFor(format)
-                        }) { Text(stringResource(DesignR.string.editor_complete_staples_all)) }
-                        TextButton({
-                            selectedStaples = emptySet()
-                        }) { Text(stringResource(DesignR.string.editor_complete_staples_none)) }
-                    }
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FormatExtraStaples.entriesFor(format).forEach { entry ->
-                            val on = entry.name in selectedStaples
-                            FilterChip(
-                                selected = on,
-                                onClick = {
-                                    selectedStaples = if (on) {
-                                        selectedStaples - entry.name
-                                    } else {
-                                        selectedStaples + entry.name
-                                    }
-                                },
-                                label = { Text(entry.shortLabel) },
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                FilledTonalButton(
-                    onClick = {
-                        onCompleteDeck(
-                            targetMain.toIntOrNull() ?: 40,
-                            targetExtra.toIntOrNull() ?: 15,
-                            targetSide.toIntOrNull() ?: 15,
-                            selectedStaples,
-                        )
-                        completeOpen = false
-                    },
-                    enabled = !completeBusy,
-                ) { Text(stringResource(DesignR.string.editor_complete_run)) }
-            },
-            dismissButton = {
-                TextButton({ completeOpen = false }, enabled = !completeBusy) {
-                    Text(stringResource(DesignR.string.action_cancel))
-                }
+        CompleteDeckOptionsDialog(
+            format = format,
+            busy = completeBusy,
+            title = stringResource(DesignR.string.editor_complete_title),
+            body = stringResource(DesignR.string.editor_complete_body),
+            onDismiss = { completeOpen = false },
+            onConfirm = { targetMain, targetExtra, targetSide, staples ->
+                onCompleteDeck(targetMain, targetExtra, targetSide, staples)
+                completeOpen = false
             },
         )
     }

@@ -201,6 +201,11 @@
     <string name="search_card_added">%1$s aggiunta</string>
     <string name="search_at_limit">%1$s è già al limite del formato (%2$d)</string>
     <string name="search_forbidden">%1$s è proibita nel formato attivo</string>
+    <string name="search_build_deck">Crea mazzo da questa carta</string>
+    <string name="search_build_deck_title">Crea un mazzo attorno a %1$s</string>
+    <string name="search_build_deck_body">Seminiamo un nuovo mazzo con %1$s e lasciamo che Auto-completa aggiunga archetipo, sinergie e partner combo. Imposta i target Main / Extra / Side qui sotto.</string>
+    <string name="search_build_deck_name">Nome mazzo</string>
+    <string name="search_build_deck_done">\"%1$s\" pronto — %2$d Main / %3$d Extra / %4$d Side.</string>
 
     <string name="decks_title">Mazzi</string>
     <string name="decks_subtitle">Crea e conserva le tue liste offline</string>

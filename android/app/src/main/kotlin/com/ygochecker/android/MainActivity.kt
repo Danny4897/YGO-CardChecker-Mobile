@@ -284,7 +284,9 @@ private fun AppShell(onCheckUpdates: () -> Unit = {}) {
                                 onOpenFlow = { goTabs(primaryTabs.indexOfFirst { it.route == "flow" }) },
                                 onOpenScan = { section = "scan" },
                             )
-                            "search" -> SearchRoute()
+                            "search" -> SearchRoute(
+                                onDeckBuilt = { goTabs(primaryTabs.indexOfFirst { it.route == "decks" }) },
+                            )
                             "decks" -> DecksRoute()
                             "flow" -> FlowRoute()
                             "profile" -> ProfileRoute()

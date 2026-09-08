@@ -201,6 +201,11 @@
     <string name="search_card_added">%1$s added</string>
     <string name="search_at_limit">%1$s is already at the format limit (%2$d)</string>
     <string name="search_forbidden">%1$s is forbidden in the active format</string>
+    <string name="search_build_deck">Build deck from this card</string>
+    <string name="search_build_deck_title">Build a deck around %1$s</string>
+    <string name="search_build_deck_body">Seeds a new deck with %1$s and lets Auto-complete pull in its archetype, synergies, and combo partners. Set Main / Extra / Side targets below.</string>
+    <string name="search_build_deck_name">Deck name</string>
+    <string name="search_build_deck_done">\"%1$s\" ready — %2$d Main / %3$d Extra / %4$d Side.</string>
 
     <string name="decks_title">Decks</string>
     <string name="decks_subtitle">Build and keep your lists offline</string>
