@@ -72,7 +72,7 @@ data class GeneratedComboLineUi(val steps: List<String>, val cardIds: List<Int>)
  * curated Flow/role content.
  */
 fun interface GenerateComboLines {
-    suspend fun invoke(deckId: Long, format: GameFormat, maxLines: Int = 10): List<GeneratedComboLineUi>
+    suspend fun invoke(deckId: Long, format: GameFormat, maxLines: Int): List<GeneratedComboLineUi>
 }
 
 class DefaultGenerateComboLines @Inject constructor(

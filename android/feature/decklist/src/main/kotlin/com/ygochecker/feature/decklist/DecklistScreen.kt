@@ -325,7 +325,7 @@ data class DeckComboReportUi(
     fun generateCombos() = viewModelScope.launch {
         val id = selected.value?.id ?: return@launch
         generatedCombosBusy = true
-        generatedCombos = generateComboLinesUseCase.invoke(id, format.value)
+        generatedCombos = generateComboLinesUseCase.invoke(id, format.value, maxLines = 10)
         generatedCombosBusy = false
     }
     fun analyzeCombos() = viewModelScope.launch {

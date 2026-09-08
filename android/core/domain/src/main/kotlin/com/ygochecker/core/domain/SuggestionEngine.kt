@@ -77,7 +77,7 @@ data class CardSuggestion(
  * ranked list, explained in plain language.
  */
 fun interface SuggestSynergisticCards {
-    suspend fun invoke(deckId: Long, format: GameFormat, maxSuggestions: Int = 12): List<CardSuggestion>
+    suspend fun invoke(deckId: Long, format: GameFormat, maxSuggestions: Int): List<CardSuggestion>
 }
 
 class DefaultSuggestSynergisticCards @Inject constructor(

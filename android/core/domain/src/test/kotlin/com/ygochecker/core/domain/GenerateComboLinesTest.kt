@@ -51,7 +51,7 @@ class GenerateComboLinesTest {
         )
         val useCase = DefaultGenerateComboLines(decks, pack)
 
-        val lines = useCase.invoke(1L, GameFormat.HAT)
+        val lines = useCase.invoke(1L, GameFormat.HAT, maxLines = 10)
 
         assertEquals(1, lines.size)
         val line = lines.single()
@@ -64,7 +64,7 @@ class GenerateComboLinesTest {
     fun `no complementary pair yields no lines`() = runBlocking {
         val decks = FakeDecks(mapOf(1L to deck))
         val pack = FakePack(mapOf(fillerId to listOf("negates"), userId to listOf("destroys")))
-        val lines = DefaultGenerateComboLines(decks, pack).invoke(1L, GameFormat.HAT)
+        val lines = DefaultGenerateComboLines(decks, pack).invoke(1L, GameFormat.HAT, maxLines = 10)
         assertTrue(lines.isEmpty())
     }
 }
