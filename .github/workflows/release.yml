@@ -1,0 +1,58 @@
+name: Build and publish release APK
+
+# Manual only — run this from the GitHub Actions tab or via the API when a version bump
+# on main is ready to ship. GitHub-hosted runners have normal internet access (unlike the
+# Claude Code Remote sandbox this project is sometimes developed from), so this is how a
+# release gets built/published from a session that has no local machine to build on.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v0.7.4 (must match versionName in android/app/build.gradle.kts)"
+        required: true
+      release_name:
+        description: "Release title, e.g. 'v0.7.4 — motore di sinergia generico'"
+        required: true
+      changelog:
+        description: "Changelog text (also becomes the release notes)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null || true
+
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Locate APK
+        working-directory: android
+        run: |
+          apk="$(find app/build/outputs/apk/release -name '*.apk' | head -n1)"
+          if [ -z "$apk" ]; then
+            echo "No APK produced" >&2
+            exit 1
+          fi
+          echo "APK_PATH=android/$apk" >> "$GITHUB_ENV"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp "$APK_PATH" app-release.apk
+          gh release create "${{ inputs.tag }}" app-release.apk \
+            --title "${{ inputs.release_name }}" \
+            --notes "${{ inputs.changelog }}"
