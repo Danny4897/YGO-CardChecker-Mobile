@@ -212,3 +212,30 @@
 - Feed update: `android/distribution/update.json` su `main`
 - `ng test` plain può hangare in watch / Electron disconnect; usare `--watch=false --browsers=ChromeHeadless`
 - **USP deck coach:** apri una carta nel mazzo → sezione Combo; oppure menu → **Analizza combo mazzo**
+
+### Come pubblicare una release (leggere PRIMA di rifare tutto da capo)
+
+**Se Claude Code gira in locale sul tuo PC** (terminale/app sul tuo computer, non
+claude.ai/code remoto): funziona come sempre, senza nessuno dei passaggi sotto —
+rete vera, Android SDK, e il tuo `~/.android/debug.keystore` sono già lì. Bump
+versione + `assembleRelease` + `gh release create` in un colpo solo. **Tutte le
+release fino a v0.7.3 sono state fatte così** (commit autore `Daniele
+<a.danielefrau@hotmail.com>` — non un bot).
+
+**Se invece gira in una sessione remota/cloud** (claude.ai/code, Slack, ecc.):
+quella sessione **non può compilare** — `dl.google.com` (repo Maven di AGP) è
+bloccato dalla policy di rete (403 "organization policy", confermato, non
+aggirabile, non ritentare). La soluzione è la pipeline GitHub Actions creata
+l'8/9/2026 (`.github/workflows/release.yml`), che builda su runner GitHub veri:
+
+1. Bump `versionCode`/`versionName` in `android/app/build.gradle.kts` (+ eventualmente `WHATS_NEW`).
+2. **Non** toccare `android/distribution/update.json` finché la release non esiste davvero con l'APK allegato — punta sempre all'ultima release reale finché non è confermato l'asset, altrimenti il popup di aggiornamento in-app fallisce con un 404 mascherato da "errore di connessione generico" (già successo, vedi fix in `AppUpdateUi.kt`).
+3. Innescare la build: **né il dispatch manuale via API né il push di un tag funzionano** da una sessione remota (entrambi 403 da GitHub, permessi limitati del token di questa integrazione — non è un problema di rete). Funziona invece un **push di branch normale** sul branch `ci-release-trigger` (`git branch -f ci-release-trigger main && git push origin refs/heads/ci-release-trigger:refs/heads/ci-release-trigger`) — il workflow ha un trigger `push: branches: [ci-release-trigger]` apposta, deriva il tag dalla `versionName` di `build.gradle.kts` e crea la release con l'`Actions token` interno (permessi diversi dal token git di questa sessione).
+4. Controllare l'esito con `mcp__github__actions_get` (`get_workflow_run`) sull'run id restituito da `list_workflow_runs`; se fallisce, i log veri stanno in `mcp__github__get_job_logs` con `return_content=true` (risposta enorme su una riga sola — salvarla su file e leggerla con `python3 -c "import json; ..."` + grep su `"e: file://"`/`error:`, **mai fermarsi al messaggio generico "Compilation error, see log"**).
+5. Solo dopo aver confermato con `get_release_by_tag` che l'asset `app-release.apk` esiste davvero (dimensione ragionevole, non pochi KB), aggiornare `update.json` e pushare su `main`.
+6. **Firma**: la release CI usa il debug keystore generato al volo dal runner (nessun keystore nel repo), diverso da quello del tuo PC — la prima installazione di un APK buildato da CI sopra un'installazione fatta in locale richiede una disinstallazione manuale. Le release CI successive tra loro restano coerenti (il workflow non rigenera il keystore a ogni run all'interno dello stesso branch/checkout... verificarlo comunque se ricapita).
+7. Vincoli git minori scoperti per la stessa via: esiste un **tag remoto chiamato `main`** (probabile errore storico) che rende ambiguo `git push origin main` — usare sempre `git push origin refs/heads/main:refs/heads/main`.
+
+Prima di rifare da zero questa indagine: leggere questa nota, controllare se
+`.github/workflows/release.yml` esiste ancora ed è aggiornato, e ripartire dal
+punto 1.
